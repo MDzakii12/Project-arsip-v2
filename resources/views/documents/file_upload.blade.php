@@ -15,8 +15,7 @@
                 </div>
             </div>
             <div class="box-body">
-                <div class="row">
-                    <div class="col-sm-6" style="margin-top: 10px;">
+                    <div class="col-sm-6" style="margin-top: 10px; position: relative; overflow: hidden;">
                         <div class="form-group text-center">
                             <label class="img-picker-label">
                                 <img class="img-picker"
@@ -28,6 +27,9 @@
                     </div>
                     {!! Form::bsSelect('files[@{{index}}][file_type_id]', $fileTypes, null, ['class'=>'form-control'], ucfirst(config('settings.file_label_singular'))." Type") !!}
                     {!! Form::bsText('files[@{{index}}][name]', null, [], ucfirst(config('settings.file_label_singular'))." Name") !!}
+                    <div class="clearfix"></div>
+                    {!! Form::bsText('files[@{{index}}][masa_guna]', null, ['placeholder' => 'Contoh: 5 Tahun / Permanen'], 'Masa Guna') !!}
+                    {!! Form::bsText('files[@{{index}}][lokasi_hard_copy]', null, ['placeholder' => 'Contoh: Lemari A, Rak 2'], 'Lokasi Hard Copy') !!}
                     @foreach ($customFields as $customField)
                         {!! Form::bsText("files[@{{index}}][custom_fields][$customField->name]",null,['class'=>'form-control typeahead','data-source'=>json_encode($customField->suggestions),'autocomplete'=>is_array($customField->suggestions)?'off':'on'], Str::title(str_replace('_',' ',$customField->name))) !!}
                     @endforeach

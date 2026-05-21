@@ -16,48 +16,52 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Intervention\Image\Facades\Image;
 use ZipArchive;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Contracts\Encryption\DecryptException;
 
 class HomeController extends AppBaseController
 {
-    /**
-     * Create a new controller instance.
-     *
-     * @return void
-     */
     public function __construct()
     {
-        /*$this->middleware('auth');*/
+        $this->middleware('auth');
     }
 
-    /**
-     * Show the application dashboard.
-     *
-     * @return \Illuminate\Http\Response
-     */
     public function index(Request $request)
     {
-        $documents = Document::all();
-        $activities = Activity::with(['createdBy','document']);
+        // 1. STATISTIK UMUM
+        $documentCounts = Document::count();
+        $filesCounts = File::count();
+        $pegawaiAktif = User::where('id', '!=', 1)->where('status', 'Active')->count();
+        $arsipHariIni = Document::whereDate('created_at', Carbon::today())->count();
+
+        // 2. DATA UNTUK GRAFIK (Jumlah Arsip per Kategori)
+        $tags = Tag::withCount('documents')->get();
+        $chartLabels = $tags->pluck('name')->toJson();
+        $chartData = $tags->pluck('documents_count')->toJson();
+
+        // 3. LOG AKTIVITAS (Timeline)
+        $activities = Activity::with(['createdBy', 'document']);
         if($request->has('activity_range')){
             $dates = explode("to",$request->get('activity_range'));
             $activities->whereDate('created_at','>=',$dates[0]??'');
             $activities->whereDate('created_at','<=',$dates[1]??'');
         }
-        $activities = $activities->orderByDesc('id')->paginate(25);
-        $allTags = Tag::with('documents','documents.files')->withCount('documents');
-        if(!auth()->user()->can('read documents')){
-            $allPerm = auth()->user()->getAllPermissions();
-            $tmpTags = array_column(groupTagsPermissions($allPerm),'tag_id');
-            $allTags->whereIn('id',$tmpTags);
-        }
-        $allTags = $allTags->get();
-        $tagCounts = $allTags->count();
-        $allDocs =  Document::whereHas('tags',function ($q) use($allTags){
-            return $q->whereIn('tag_id',$allTags->pluck('id')->toArray());
-        })->pluck('id');
-        $documentCounts = $allDocs->count();
-        $filesCounts = File::whereIn('document_id',$allDocs->toArray())->count();
-        return view('home',compact('documents','activities','tagCounts','documentCounts','filesCounts'));
+        $activities = $activities->orderByDesc('id')->paginate(10); // Ambil 10 aktivitas terakhir
+
+        // 4. DAFTAR DOKUMEN (Untuk Quick Upload)
+        $documents = Document::orderByDesc('id')->get();
+
+        return view('home', compact(
+            'documentCounts', 
+            'filesCounts', 
+            'pegawaiAktif', 
+            'arsipHariIni', 
+            'chartLabels', 
+            'chartData', 
+            'activities', 
+            'documents'
+        ));
     }
 
     public function welcome()
@@ -81,34 +85,49 @@ class HomeController extends AppBaseController
             $profile->update($data);
             return redirect()->route('profile.manage');
         }
-
         return view('profile',compact('profile'));
     }
 
-    /**
-     * Show Or Download File.
-     * @param Request $request
-     * @param string $dir
-     * @param null $file
-     * @return \Symfony\Component\HttpFoundation\BinaryFileResponse
-     */
     public function showFile(Request $request, $dir = 'original', $file = null)
     {
-        $name = $file;
+        // 1. Biarkan nama filenya tetap ACAK (hashed) seperti di dalam folder!
+        $name = $file; 
+        
         $attachment = 'inline';
-        if($request->has('force')){//for force download
+        if($request->has('force')){
             $attachment = 'attachment';
         }
-        if (!empty($file)) {
-            $fileModels = File::where('file', $file)->get();
-            if ($fileModels->isNotEmpty()) {
-                $fileModel = $fileModels[0];
-                $name = Str::slug($fileModel->document->name). "_" .$fileModel->document->id . "_" . $dir . "_" . Str::slug($fileModel->name);
-                $name .= "." . last(explode('.', $file));
-            }
+        
+        $filePath = storage_path('app/files/' . $dir . '/') . $file;
+        if (!file_exists($filePath)) {
+            abort(404);
         }
-        $file = storage_path('app/files/' . $dir . '/') . $file;
-        return response()->file($file, ['Content-disposition' => $attachment.'; filename="' . $name . '"']);
+
+        // 2. Tentukan tipe ekstensi untuk browser
+        $extension = strtolower(last(explode('.', $file)));
+        $mimeTypes = [
+            'pdf' => 'application/pdf', 'doc' => 'application/msword', 
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls' => 'application/vnd.ms-excel', 'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg'
+        ];
+        $contentType = $mimeTypes[$extension] ?? 'application/octet-stream';
+
+        // 3. PROSES DEKRIPSI
+        if ($dir == 'original') {
+            try {
+                $encryptedContents = file_get_contents($filePath);
+                $decryptedContents = Crypt::decrypt($encryptedContents);
+                
+                return response($decryptedContents)
+                    ->header('Content-Type', $contentType)
+                    ->header('Content-Disposition', $attachment.'; filename="' . $name . '"');
+            } catch (DecryptException $e) {
+                return response()->file($filePath, ['Content-disposition' => $attachment.'; filename="' . $name . '"']);
+            }
+        } else {
+            return response()->file($filePath, ['Content-disposition' => $attachment.'; filename="' . $name . '"']);
+        }
     }
 
     public function downloadZip(Request $request, $id, $dir = 'all')
@@ -134,7 +153,6 @@ class HomeController extends AppBaseController
             }
         }
 
-        /*Create a zip archive*/
         $zip = new ZipArchive();
         $zip->open($zip_file, ZipArchive::CREATE | ZipArchive::OVERWRITE);
         if(!empty($dir) && !empty($directories)){
@@ -149,7 +167,6 @@ class HomeController extends AppBaseController
                 }
             }
         }
-
         $zip->close();
         return response()->download($zip_file)->deleteFileAfterSend();
     }

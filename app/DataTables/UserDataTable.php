@@ -69,12 +69,14 @@ class UserDataTable extends DataTable
     protected function getColumns()
     {
         return [
-            'id',
-            'name',
-            'email',
-            'username',
-            'address',
-            'status'
+            'name' => ['title' => 'Nama Lengkap'],
+            'nip' => ['title' => 'NIP'],
+            'jabatan' => ['title' => 'Jabatan'],
+            'divisi' => ['title' => 'Divisi'],
+            'pangkat_golongan' => ['title' => 'Pangkat / Golongan'],
+            'no_hp' => ['title' => 'No. HP / WA'],
+            'username' => ['title' => 'Username Login'],
+            'status' => ['title' => 'Status Akun']
         ];
     }
 

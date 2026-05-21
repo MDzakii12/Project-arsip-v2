@@ -71,7 +71,12 @@ class User extends Authenticatable
         'address',
         'description',
         'password',
-        'status'
+        'status',
+        'nip',
+        'jabatan',
+        'pangkat_golongan',
+        'no_hp',
+        'divisi'
     ];
 
     /**
@@ -106,7 +111,12 @@ class User extends Authenticatable
 
     public function getIsSuperAdminAttribute()
     {
-        return ($this->id == 1) ? true : false;
+        return $this->id == 1 || strtolower($this->jabatan) == 'admin';
+    }
+
+    public function getIsOperatorAttribute()
+    {
+        return $this->is_super_admin || strtolower($this->jabatan) == 'operator';
     }
 
 //    public function scopePermission($query, $permissions)

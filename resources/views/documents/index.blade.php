@@ -66,15 +66,15 @@
         <h1 class="pull-left">
             {{ucfirst(config('settings.document_label_plural'))}}
         </h1>
+        @if(auth()->user()->name == 'Super Admin')
         <h1 class="pull-right">
-            @can('create',\App\Document::class)
-                <a href="{{route('documents.create')}}"
-                   class="btn btn-primary">
-                    <i class="fa fa-plus"></i>
-                    Add New
-                </a>
-            @endcan
+            <a href="{{route('documents.create')}}"
+               class="btn btn-primary">
+                <i class="fa fa-plus"></i>
+                Add New
+            </a>
         </h1>
+        @endif
     </section>
     <div class="content" style="margin-top: 22px;">
         <div class="clearfix"></div>
@@ -106,6 +106,7 @@
                         @endforeach
                     </select>
                 </div>
+                
                 <div class="form-group">
                     <label for="status" class="sr-only">{{config('settings.tags_label_singular')}}:</label>
                     {!! Form::select('status',['0'=>"ALL",config('constants.STATUS.PENDING')=>config('constants.STATUS.PENDING'),config('constants.STATUS.APPROVED')=>config('constants.STATUS.APPROVED'),config('constants.STATUS.REJECT')=>config('constants.STATUS.REJECT')],null,['class'=>'form-control input-sm']) !!}
@@ -137,21 +138,28 @@
                                                     <span class="sr-only">Toggle Dropdown</span>
                                                 </button>
                                                 <ul class="dropdown-menu dropdown-menu-left" role="menu">
-                                                    <li><a href="{{route('documents.show',$document->id)}}">Show</a>
+                                                    <li>
+                                                        <a href="{{route('documents.show', $document->id)}}" style="padding: 6px 20px; color: #3c8dbc; font-weight: 500;">
+                                                            <i class="fa fa-eye" style="width: 20px;"></i> Show
+                                                        </a>
                                                     </li>
-                                                    @can('edit',$document)
-                                                        <li><a href="{{route('documents.edit',$document->id)}}">Edit</a>
+                                                    
+                                                    @can('edit', $document)
+                                                    <li>
+                                                        <a href="{{route('documents.edit', $document->id)}}" style="padding: 6px 20px; color: #f39c12; font-weight: 500;">
+                                                            <i class="fa fa-edit" style="width: 20px;"></i> Edit
+                                                            </a>
                                                         </li>
                                                     @endcan
                                                     @can('delete',$document)
-                                                        <li>
-                                                            {!! Form::open(['route' => ['documents.destroy', $document->id], 'method' => 'delete']) !!}
-                                                            {!! Form::button('Delete', [
-                                                                        'type' => 'submit',
-                                                                        'class' => 'btn btn-link',
-                                                                        'onclick' => "return conformDel(this,event)"
-                                                                    ]) !!}
-                                                            {!! Form::close() !!}
+                                                        {!! Form::open(['route' => ['documents.destroy', $document->id], 'method' => 'delete']) !!}
+                                                        {!! Form::button('<i class="fa fa-trash"></i> Delete', [
+                                                            'type' => 'button', 
+                                                            'class' => 'btn btn-link',
+                                                            'style' => 'width: 100%; text-align: left; padding: 3px 20px; color: #dc3545; text-decoration: none;',
+                                                            'onclick' => 'hapusFolder(this)'
+                                                        ]) !!}
+                                                    {!! Form::close() !!}
                                                         </li>
                                                     @endcan
 
@@ -162,10 +170,6 @@
                                     <!-- /.widget-user-image -->
                                     <a href="{{route('documents.show',$document->id)}}" style="color: black;">
                                     <span style="max-lines: 1; white-space: nowrap;margin-left: 3px;">
-                                    @foreach ($document->tags as $tag)
-                                            <small class="label"
-                                                   style="background-color: {{$tag->color}};font-size: 0.93rem;">{{$tag->name}}</small>
-                                        @endforeach
                                     </span>
                                         <h5 class="widget-user-username" title="{{$document->name}}"
                                             data-toggle="tooltip">{{$document->name}}</h5>
@@ -188,4 +192,5 @@
             </div>
         </div>
     </div>
+    
 @endsection

@@ -1,7 +1,7 @@
 <?php
 
 namespace App;
-
+use Illuminate\Database\Eloquent\Builder;
 use Eloquent as Model;
 
 /**
@@ -45,7 +45,20 @@ use Eloquent as Model;
  */
 class Document extends Model
 {
-
+    protected static function boot()
+    {
+        parent::boot();
+        static::addGlobalScope('kunci_dokumen_pegawai', function ($builder) {
+            if (auth()->check() && !auth()->user()->is_super_admin) {
+                
+                $builder->where(function ($query) {
+                    $query->where('divisi', auth()->user()->divisi)
+                          ->orWhere('created_by', auth()->id());
+                }); 
+                
+            } 
+        }); 
+    }
     public $table = 'documents';
 
     public $fillable = [
@@ -55,7 +68,10 @@ class Document extends Model
         'created_by',
         'custom_fields',
         'verified_at',
-        'verified_by'
+        'verified_by',
+        'masa_guna',
+        'lokasi_hard_copy',
+        'divisi',
     ];
 
     /**
@@ -70,7 +86,9 @@ class Document extends Model
         'status' => 'string',
         'created_by' => 'integer',
         'verified_by' => 'integer',
-        'custom_fields' => 'array'
+        'custom_fields' => 'array',
+        'masa_guna' => 'string',
+        'lokasi_hard_copy' => 'string',
     ];
 
     /**
@@ -81,7 +99,7 @@ class Document extends Model
     public static $rules = [
         'name' => 'required',
         'description' => 'nullable',
-        'tags' => 'required',
+        'tags' => 'nullable',
         'custom_fields' => 'nullable'
     ];
 

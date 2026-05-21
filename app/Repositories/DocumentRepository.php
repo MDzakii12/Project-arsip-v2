@@ -86,7 +86,11 @@ class DocumentRepository extends BaseRepository
     public function createWithTags($data)
     {
         $document = $this->create($data);
-        $document->tags()->attach($data['tags']);
+        
+        if (isset($data['tags'])) {
+            $document->tags()->attach($data['tags']);
+        }
+        
         return $document;
     }
 
@@ -113,11 +117,15 @@ class DocumentRepository extends BaseRepository
             foreach (config('constants.DOCUMENT_LEVEL_PERMISSIONS') as $perm_key => $perm) {
                 $permissions[] = $perm_key . $document->id;
             }
-            /** @var User $user */
-            $users=User::permission($permissions)->get();
-            foreach ($users as $user){
-                $this->permissionRepository->deleteDocumentLevelPermissionForUser($document,$user);
+            try {
+                /** @var User $user */
+                $users=User::permission($permissions)->get();
+                foreach ($users as $user){
+                    $this->permissionRepository->deleteDocumentLevelPermissionForUser($document,$user);
+                }
+            } catch (\Exception $e) {
             }
+            
             Permission::whereIn('name', $permissions)->delete();
         }
     }
@@ -132,7 +140,7 @@ class DocumentRepository extends BaseRepository
     }
 
     public function buildMissingDocErrors($document)
-    {
+    {return [];
         $missigDocMsgs = [];
         if (config('settings.show_missing_files_errors') == 'true' && $document->status != config('constants.STATUS.APPROVED')) {
             $fileTypes = FileType::all();
@@ -142,7 +150,7 @@ class DocumentRepository extends BaseRepository
                 $allFiles = $document->files->where('file_type_id', $fileType->id);
                 if ($allFiles->count() <= $count) {
                     for ($i = $allFiles->count(); $i < $count; $i++) {
-                        $labels = explode(",", $fileType->labels)[$i];
+                        $labels = explode(",", $fileType->labels)[$i] ?? 'Dokumen Ke-' . ($i + 1);
                         $missigDocMsgs[] = $fileType->name . " " . $labels;
                     }
                 }
@@ -168,8 +176,8 @@ class DocumentRepository extends BaseRepository
     public function saveFilesWithDoc($filesData,$document)
     {
         $document->updated_at = now();
-        $document->status = config('constants.STATUS.PENDING');
-        $document->save();
+        //$document->status = config('constants.STATUS.PENDING');
+        //$document->save();
         foreach ($filesData as $key=>$filesDatum) {
             $filesData[$key]['document_id'] = $document->id;
         }

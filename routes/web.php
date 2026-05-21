@@ -19,7 +19,9 @@ use App\Http\Controllers\SettingController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\UserController;
 
-Route::get('/', [HomeController::class,'welcome'])->name('home');
+Route::get('/', function () {
+    return redirect('/login');
+})->name('home');
 
 Route::get('config', function () {
     Artisan::call('route:clear');

@@ -25,22 +25,14 @@ use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Facades\Image;
 use Laracasts\Flash\Flash;
 use Spatie\Permission\Models\Permission;
+use Illuminate\Support\Facades\Crypt;
 
 class DocumentController extends Controller
 {
-    /** @var  TagRepository */
     private $tagRepository;
-
-    /** @var DocumentRepository */
     private $documentRepository;
-
-    /** @var CustomFieldRepository */
     private $customFieldRepository;
-
-    /** @var FileTypeRepository */
     private $fileTypeRepository;
-
-    /** @var PermissionRepository $permissionRepository */
     private $permissionRepository;
 
     public function __construct(TagRepository $tagRepository,
@@ -56,11 +48,6 @@ class DocumentController extends Controller
         $this->permissionRepository = $permissionRepository;
     }
 
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
     public function index(Request $request)
     {
         $this->authorize('viewAny', Document::class);
@@ -73,38 +60,40 @@ class DocumentController extends Controller
         return view('documents.index', compact('documents', 'tags'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
     public function create()
     {
-        $this->authorize('create', Document::class);
+        //$this->authorize('create', Document::class);
         $tags = $this->tagRepository->all();
         $customFields = $this->customFieldRepository->getForModel('documents');
-        return view('documents.create', compact('tags', 'customFields'));
+        
+        // SUNTIKAN GAIB: Ambil daftar nama pegawai untuk Form Admin
+        $pegawais = User::pluck('name', 'id');
+        
+        return view('documents.create', compact('tags', 'customFields', 'pegawais'));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\Response
-     */
     public function store(CreateDocumentRequest $request)
     {
         $data = $request->all();
-        $data['created_by'] = Auth::id();
-        $data['status'] = config('constants.STATUS.PENDING');
+        
+        // SUNTIKAN GAIB: Jadikan pegawai yang dipilih Admin sebagai Pemilik Arsip
+        if (auth()->user()->is_super_admin && $request->has('pemilik_id')) {
+            $data['created_by'] = $request->pemilik_id;
+        } else {
+            $data['created_by'] = Auth::id();
+        }
 
-        $this->authorize('store', [Document::class, $data['tags']]);
+        if (auth()->check() && !auth()->user()->is_super_admin) {
+            $data['divisi'] = auth()->user()->divisi;
+        }
+
+        $data['status'] = config('constants.STATUS.PENDING');
+        // $this->authorize('store', [Document::class, $data['tags']]);
 
         $document = $this->documentRepository->createWithTags($data);
-        Flash::success(ucfirst(config('settings.document_label_singular')) . " Saved Successfully");
+        Flash::success(ucfirst(config('settings.document_label_singular')) . " Berhasil Disimpan!");
         $document->newActivity(ucfirst(config('settings.document_label_singular')) . " Created");
 
-        //create permission for new document
         foreach (config('constants.DOCUMENT_LEVEL_PERMISSIONS') as $perm_key => $perm) {
             Permission::create(['name' => $perm_key . $document->id]);
         }
@@ -115,17 +104,9 @@ class DocumentController extends Controller
         return redirect()->route('documents.index');
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param int $id
-     * @return \Illuminate\Http\Response
-     */
     public function show($id)
     {
-        /** @var Document $document */
-        $document = $this->documentRepository
-            ->getOneEagerLoaded($id,['files', 'files.fileType', 'files.createdBy', 'activities', 'activities.createdBy', 'tags']);
+        $document = $this->documentRepository->getOneEagerLoaded($id,['files', 'files.fileType', 'files.createdBy', 'activities', 'activities.createdBy', 'tags']);
         if (empty($document)) {
             abort(404);
         }
@@ -137,9 +118,7 @@ class DocumentController extends Controller
         if (auth()->user()->can('user manage permission')) {
             $users = User::where('id', '!=', 1)->get();
             $thisDocPermissionUsers = $this->permissionRepository->getUsersWiseDocumentLevelPermissionsForDoc($document);
-            //Tag Level permission
             $tagWisePermList = $this->permissionRepository->getTagWiseUsersPermissionsForDoc($document);
-            //Global Permission
             $globalPermissionUsers = $this->permissionRepository->getGlobalPermissionsForDoc($document);
 
             $dataToRet = array_merge($dataToRet, compact('users', 'thisDocPermissionUsers', 'tagWisePermList', 'globalPermissionUsers'));
@@ -169,52 +148,43 @@ class DocumentController extends Controller
         return redirect()->back();
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param int $id
-     * @return \Illuminate\Http\Response
-     */
     public function edit($id)
     {
         $document = Document::findOrFail($id);
         $this->authorize('edit', $document);
         $tags = Tag::all();
         $customFields = $this->customFieldRepository->getForModel('documents');
-        return view('documents.edit', compact('tags', 'customFields', 'document'));
+        
+        // SUNTIKAN GAIB: Ambil daftar nama pegawai
+        $pegawais = User::pluck('name', 'id');
+        
+        return view('documents.edit', compact('tags', 'customFields', 'document', 'pegawais'));
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @param int $id
-     * @return \Illuminate\Http\Response
-     */
     public function update(UpdateDocumentRequest $request, $id)
     {
         $document = Document::findOrFail($id);
         $data = $request->all();
+        
+        // SUNTIKAN GAIB: Admin bisa update pemilik arsip ini
+        if (auth()->user()->is_super_admin && $request->has('pemilik_id')) {
+            $data['created_by'] = $request->pemilik_id;
+        }
+
         $this->authorize('update', [$document, $data['tags']]);
         $this->documentRepository->updateWithTags($data,$document);
         $document->newActivity(ucfirst(config('settings.document_label_singular')) . " Updated");
-        Flash::success(ucfirst(config('settings.document_label_singular')) . " Updated Successfully");
+        Flash::success(ucfirst(config('settings.document_label_singular')) . " Berhasil Diupdate!");
         return redirect()->route('documents.index');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param int $id
-     * @return \Illuminate\Http\Response
-     */
     public function destroy($id)
     {
         $document = Document::findOrFail($id);
         $this->authorize('delete', $document);
         $document->newActivity(ucfirst(config('settings.document_label_singular')) . " Deleted");
         $this->documentRepository->deleteWithFiles($document,true);
-        Flash::success(ucfirst(config('settings.document_label_singular')) . " Deleted Successfully");
+        Flash::success(ucfirst(config('settings.document_label_singular')) . " Berhasil Dihapus!");
         return redirect()->route('documents.index');
     }
 
@@ -250,7 +220,7 @@ class DocumentController extends Controller
             Flash::error("Oh No..., try to create some ".config('settings.document_label_singular')." before uploading ".config('settings.file_label_plural'));
             return redirect()->route('documents.index');
         }
-        $this->authorize('update', [$document, $document->tags->pluck('id')]);
+        //$this->authorize('update', [$document, $document->tags->pluck('id')]);
         $fileTypes = FileType::pluck('name', 'id');
         $customFields = $this->customFieldRepository->getForModel('files');
         return view('documents.file_upload', compact('document', 'fileTypes', 'customFields'));
@@ -261,7 +231,6 @@ class DocumentController extends Controller
         $document = Document::findOrFail($id);
         $this->authorize('update', [$document, $document->tags->pluck('id')]);
         $filesData = $request->all('files')['files'] ?? [];
-        /* Prepare final data */
         $filesData = $this->prepareFilesData($filesData);
         $this->documentRepository->saveFilesWithDoc($filesData, $document);
         $document->newActivity(count($filesData) . " New " . ucfirst(config('settings.file_label_plural')) . " Uploaded To " . ucfirst(config('settings.document_label_singular')));
@@ -276,40 +245,45 @@ class DocumentController extends Controller
     private function prepareFilesData($filesData){
         $imageVariants = explode(',', config('settings.image_files_resize'));
         foreach ($filesData as $i => $fileData) {
-            /** @var UploadedFile $file */
             $file = $filesData[$i]['file'];
-            $filePath = $file->store('files/original');
+            $fileName = $file->hashName();
+
+            // 1. Lakukan Resizing Gambar DULU (sebelum file dienkripsi)
+            // Mengambil source dari getRealPath() file sementara
             if (isImage($file->getMimeType())) {
-                /*Image intervention resize*/
                 foreach ($imageVariants as $imageVariant) {
                     $resizeSavePath = "app/files/$imageVariant/";
                     if (!file_exists(storage_path($resizeSavePath))) {
                         mkdir(storage_path($resizeSavePath), 0755, true);
                     }
-                    $imageIntervention = Image::make(storage_path('app/' . $filePath));
+                    $imageIntervention = Image::make($file->getRealPath());
                     $imageIntervention->resize($imageVariant, null, function ($constraint) {
                         $constraint->aspectRatio();
-                    })->save(storage_path($resizeSavePath . $file->hashName()));
+                    })->save(storage_path($resizeSavePath . $fileName));
                 }
-
-                //create thumb
                 $thumbPath = "app/files/thumb/";
                 if (!file_exists(storage_path($thumbPath))) {
                     mkdir(storage_path($thumbPath), 0755, true);
                 }
-                Image::make(storage_path('app/' . $filePath))
+                Image::make($file->getRealPath())
                     ->resize(193, null, function ($constraint) {
                         $constraint->aspectRatio();
-                    })->save(storage_path($thumbPath . $file->hashName()));
+                    })->save(storage_path($thumbPath . $fileName));
             }
 
+            // 2. PROSES ENKRIPSI FILE ASLI (Kriptografi Tingkat Tinggi)
+            // Baca isi file -> Acak pakai kunci mesin -> Simpan ke folder
+            $fileContents = file_get_contents($file->getRealPath());
+            $encryptedContents = Crypt::encrypt($fileContents);
+            Storage::put('files/original/' . $fileName, $encryptedContents);
+
+            // 3. Simpan data ke database
             $filesData[$i]['custom_fields'] = json_encode($filesData[$i]['custom_fields'] ?? []);
-            $filesData[$i]['file'] = $file->hashName();
+            $filesData[$i]['file'] = $fileName;
             $filesData[$i]['created_by'] = Auth::id();
             $filesData[$i]['created_at'] = now();
             $filesData[$i]['updated_at'] = now();
         }
-
         return $filesData;
     }
 

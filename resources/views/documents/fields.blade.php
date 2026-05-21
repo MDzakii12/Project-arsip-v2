@@ -1,42 +1,29 @@
-<!-- Name Field -->
-{!! Form::bsText('name') !!}
-{{--if in edit mode--}}
-@if ($document)
-    @if (auth()->user()->can('update document '.$document->id) && !auth()->user()->is_super_admin)
-        @foreach($document->tags->pluck('id')->toArray() as $tagId)
-            <input type="hidden" name="tags[]" value="{{$tagId}}">
-        @endforeach
-    @else
-        <div class="form-group col-sm-6 ">
-            <label for="tags[]">{{ucfirst(config('settings.tags_label_plural'))}}</label>
-            <select class="form-control select2" id="tags"
-                    name="tags[]"
-                    multiple>
-                @foreach($tags as $tag)
-                    @canany (['update documents','update documents in tag '.$tag->id])
-                        <option
-                            value="{{$tag->id}}" {{(in_array($tag->id,old('tags', optional(optional(optional($document)->tags)->pluck('id'))->toArray() ?? [] )))?"selected":"" }}>{{$tag->name}}</option>
-                    @endcanany
-                @endforeach
-            </select>
-        </div>
-    @endif
-@else
-    <div class="form-group col-sm-6 {{ $errors->has("tags") ? 'has-error' :'' }}">
-        <label for="tags[]">{{ucfirst(config('settings.tags_label_plural'))}}</label>
-        <select class="form-control select2" id="tags" name="tags[]" multiple>
-            @foreach($tags as $tag)
-                @canany (['create documents','create documents in tag '.$tag->id])
-                    <option
-                        value="{{$tag->id}}" {{(in_array($tag->id,old('tags', optional(optional(optional($document)->tags)->pluck('id'))->toArray() ?? [] )))?"selected":"" }}>{{$tag->name}}</option>
-                @endcanany
-            @endforeach
-        </select>
-        {!! $errors->first("tags",'<span class="help-block">:message</span>') !!}
-    </div>
-@endif
-{!! Form::bsTextarea('description',null,['class'=>'form-control b-wysihtml5-editor']) !!}
+<div class="form-group col-sm-6">
+    <label>Name:</label>
+    {!! Form::text('name', null, ['class' => 'form-control']) !!}
+</div>
 
+<div class="clearfix"></div>
+
+@if(auth()->user()->is_super_admin)
+    <div class="form-group col-sm-6">
+        <label>Tugaskan Arsip Ini Kepada Pegawai:</label>
+        {!! Form::select('pemilik_id', $pegawais ?? [], isset($document) ? $document->created_by : null, ['class' => 'form-control', 'placeholder' => '-- Pilih Pegawai / Kosongkan --']) !!}
+    </div>
+
+    <div class="form-group col-sm-6">
+        <label>Tugaskan Arsip Ini Kepada Divisi:</label>
+        {!! Form::select('divisi', [
+            'Paud' => 'PAUD', 
+            'TK' => 'TK', 
+            'SD' => 'SD', 
+            'SMP' => 'SMP', 
+            'SMA' => 'SMA'
+        ], null, ['class' => 'form-control', 'placeholder' => '-- Pilih Divisi / Kosongkan --']) !!}
+    </div>
+    
+    <div class="clearfix"></div>
+@endif
 
 {{--additional Attributes--}}
 @foreach ($customFields as $customField)
@@ -48,9 +35,7 @@
 @endforeach
 {{--end additional attributes--}}
 
-<!-- Submit Field -->
 <div class="form-group col-sm-12">
     {!! Form::submit('Save', ['class' => 'btn btn-primary']) !!}
-    {!! Form::submit('Save & Upload', ['class' => 'btn btn-primary','name'=>'savnup']) !!}
     <a href="{!! route('documents.index') !!}" class="btn btn-default">Cancel</a>
 </div>

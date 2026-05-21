@@ -56,7 +56,9 @@ class File extends Model
         'document_id',
         'file_type_id',
         'created_by',
-        'custom_fields'
+        'custom_fields',
+        'masa_guna',
+        'lokasi_hard_copy',
     ];
 
     /**

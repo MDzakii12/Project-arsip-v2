@@ -73,6 +73,14 @@
                                 </p>
                             </div>
                             <div class="form-group">
+                                <label>Masa Guna:</label>
+                                <p>@{{masa_guna}}</p>
+                            </div>
+                            <div class="form-group">
+                                <label>Lokasi Hard Copy:</label>
+                                <p>@{{lokasi_hard_copy}}</p>
+                            </div>
+                            <div class="form-group">
                                 <label>Uploaded On:</label>
                                 <p>@{{formatDate created_at}}</p>
                             </div>
@@ -270,9 +278,48 @@
                                     </ul>
                                 </div>
                             @endif
-                            <div class="row">
+                           <div id="level2-folders" class="row" style="margin-bottom: 20px;">
+                                @foreach($document->tags as $tag)
+                                <div class="col-md-3 col-sm-4 col-xs-12" style="margin-bottom: 15px;">
+                                    <div class="box custom-box" onclick="openFolder('{{ $tag->name }}')" 
+                                        style="cursor: pointer; border-radius: 8px; border: 1px solid #dadce0; padding: 12px 15px; display: flex; align-items: center; background: #fff; transition: background 0.2s; margin-bottom: 0;"
+                                        onmouseover="this.style.backgroundColor='#f8f9fa'" onmouseout="this.style.backgroundColor='#fff'">
+                                        <i class="fa fa-folder" style="font-size: 24px; color: #fbbc04; margin-right: 15px;"></i>
+                                        <span style="font-weight: 600; color: #3c4043; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ $tag->name }}</span>
+                                    </div>
+                                </div>
+                                @endforeach
+                                @can('update', [$document, $document->tags->pluck('id')])
+                                <div class="col-md-3 col-sm-4 col-xs-12" style="margin-bottom: 15px;">
+                                    <a href="{{ route('documents.edit', $document->id) }}" style="text-decoration: none;">
+                                        <div class="box custom-box" 
+                                            style="cursor: pointer; border-radius: 8px; border: 1px dashed #1a73e8; padding: 12px 15px; display: flex; align-items: center; background: #f8f9fa; transition: background 0.2s; margin-bottom: 0;"
+                                            onmouseover="this.style.backgroundColor='#e8f0fe'" onmouseout="this.style.backgroundColor='#f8f9fa'">
+                                            <i class="fa fa-plus" style="font-size: 20px; color: #1a73e8; margin-right: 15px;"></i>
+                                            <span style="font-weight: 600; color: #1a73e8; font-size: 14px;">Tambah Folder</span>
+                                        </div>
+                                    </a>
+                                </div>
+                                @endcan
+                            </div>
+                                    </a>
+                            </div>
+                            <div id="level3-files" style="display: none;">
+                                <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
+                                    <button type="button" class="btn btn-default" onclick="closeFolder()" style="border-radius: 8px; padding: 6px 15px;">
+                                        <i class="fa fa-arrow-left"></i> Kembali ke Daftar Tag
+                                    </button>
+                                    @if(auth()->user()->is_super_admin || auth()->user()->jabatan == 'Operator')
+                                    <a href="{{ url('admin/files-upload/'.$document->id) }}" class="btn btn-primary" style="border-radius: 8px; padding: 6px 15px;">
+                                        <i class="fa fa-cloud-upload"></i> Upload File
+                                    </a>
+                                    @endif
+                                </div>
+                                <h4 id="nama-folder-aktif" style="margin-bottom: 20px; font-weight: bold; color: #3c4043;">📂 Isi Arsip: </h4>
+                                
+                                <div class="row">
                                 @foreach ($document->files->sortBy('file_type_id') as $file)
-                                    <div class="col-xs-6 col-md-6 col-lg-4">
+                                    <div class="col-xs-6 col-md-6 col-lg-4 file-item" data-folder="{{ $file->fileType->name }}">
                                         <div class="box custom-box">
                                             <div class="box-body">
                                                 @if (checkIsFileIsImage($file->file))
@@ -339,12 +386,35 @@
                                         </div>
                                     </div>
                                 @endforeach
-                            </div>
-                            @can('update', [$document, $document->tags->pluck('id')])
-                                <a href="{{route('documents.files.create',$document->id)}}"
-                                   class="btn btn-primary btn-sm"><i class="fa fa-plus"></i>
-                                    Add {{ucfirst(config('settings.file_label_plural'))}}</a>
-                            @endcan
+                                </div> 
+                                <script>
+                                    function openFolder(tagName) {
+                                        // 1. Sembunyikan folder, munculkan papan file
+                                        document.getElementById('level2-folders').style.display = 'none';
+                                        document.getElementById('level3-files').style.display = 'block';
+                                        document.getElementById('nama-folder-aktif').innerText = '📂 Isi Arsip: ' + tagName;
+
+                                        // 2. Mesin Sortir: Cek KTP masing-masing file
+                                        let files = document.querySelectorAll('.file-item');
+                                        files.forEach(function(file) {
+                                            let fileKTP = file.getAttribute('data-folder');
+                                            
+                                            // Kalau KTP file SAMA DENGAN nama folder yang diklik, tampilkan!
+                                            if (fileKTP && fileKTP.toLowerCase() === tagName.toLowerCase()) {
+                                                file.style.display = 'block';
+                                            } else {
+                                                file.style.display = 'none'; // Kalau beda, sembunyikan!
+                                            }
+                                        });
+                                    }
+
+                                    function closeFolder() {
+                                        // Kembali ke halaman folder
+                                        document.getElementById('level3-files').style.display = 'none';
+                                        document.getElementById('level2-folders').style.display = 'block';
+                                    }
+                                </script>
+                            </>
                         </div>
                         @can('verify', $document)
                             <div class="tab-pane" id="tab_verification">
