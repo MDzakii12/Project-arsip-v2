@@ -63,15 +63,13 @@
 @stop
 @section('content')
     <section class="content-header">
-        <h1 class="pull-left">
-            {{ucfirst(config('settings.document_label_plural'))}}
-        </h1>
+        <h1 class="pull-left">Daftar Folder</h1>
         @if(auth()->user()->name == 'Super Admin')
         <h1 class="pull-right">
             <a href="{{route('documents.create')}}"
                class="btn btn-primary">
                 <i class="fa fa-plus"></i>
-                Add New
+                Tambah Folder
             </a>
         </h1>
         @endif
@@ -95,9 +93,9 @@
                     {!! Form::text('search',null,['class'=>'form-control input-sm','placeholder'=>'Search...']) !!}
                 </div>
                 <div class="form-group">
-                    <label for="tags" class="sr-only">{{config('settings.tags_label_singular')}}:</label>
+                    <label for="tags" class="sr-only">Kategori :</label>
                     <select class="form-control select2 input-sm" name="tags[]" id="tags"
-                            data-placeholder="Choose {{config('settings.tags_label_singular')}}" multiple>
+                            data-placeholder="-- Pilih Kategori --" multiple>
                         @foreach($tags as $tag)
                             @canany(['read documents','read documents in tag '.$tag->id])
                                 <option
@@ -108,7 +106,7 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="status" class="sr-only">{{config('settings.tags_label_singular')}}:</label>
+                    <label for="status" class="sr-only">Status :</label>
                     {!! Form::select('status',['0'=>"ALL",config('constants.STATUS.PENDING')=>config('constants.STATUS.PENDING'),config('constants.STATUS.APPROVED')=>config('constants.STATUS.APPROVED'),config('constants.STATUS.REJECT')=>config('constants.STATUS.REJECT')],null,['class'=>'form-control input-sm']) !!}
                 </div>
                 <button type="submit" class="btn btn-default btn-sm"><i class="fa fa-filter"></i> Filter</button>
@@ -116,7 +114,7 @@
             </div>
             <div class="box-body">
                 <div class="row">
-                    @foreach ($documents as $document)
+                    @forelse ($documents as $document)
                         @cannot('view',$document)
                             @continue
                         @endcannot
@@ -184,7 +182,12 @@
                             </div>
                             <!-- /.widget-user -->
                         </div>
-                    @endforeach
+                    @empty
+                        <div class="col-md-12 text-center" style="padding: 60px 0;">
+                            <i class="fa fa-folder-open-o" style="font-size: 50px; color: #ccc; margin-bottom: 15px;"></i>
+                            <h4 style="color: #888; font-weight: bold;">No matching records found</h4>
+                        </div>
+                    @endforelse
                 </div>
             </div>
             <div class="box-footer">

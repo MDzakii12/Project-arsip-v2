@@ -59,6 +59,7 @@ class File extends Model
         'custom_fields',
         'masa_guna',
         'lokasi_hard_copy',
+        'status'
     ];
 
     /**

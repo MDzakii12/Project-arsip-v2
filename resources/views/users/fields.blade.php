@@ -1,9 +1,26 @@
+<style>
+    .box-primary .form-control:hover, 
+    .box-primary .form-control:focus, 
+    .box-primary .form-control:active {
+        box-shadow: none !important;
+        transform: none !important;
+        outline: none !important;
+        border: 1px solid #ced4da !important;
+    }
+
+    .box-primary select.form-control:hover, 
+    .box-primary select.form-control:focus {
+        box-shadow: none !important;
+        transform: none !important;
+    }
+</style>
 <div class="box box-primary">
     <div class="box-header no-border">
         <h3 class="box-title">Data Profil Pegawai</h3>
     </div>
     <div class="box-body">
         <div class="row">
+
             <div class="form-group col-sm-6 {{ $errors->has('name') ? 'has-error' :'' }}">
                 {!! Form::label('name', 'Nama Lengkap:') !!}
                 {!! Form::text('name', null, ['class' => 'form-control']) !!}
@@ -15,15 +32,10 @@
                 {!! Form::text('nip', null, ['class' => 'form-control']) !!}
                 {!! $errors->first('nip','<span class="help-block">:message</span>') !!}
             </div>
-
-            <div class="form-group col-sm-6 {{ $errors->has('pangkat_golongan') ? 'has-error' :'' }}">
-                {!! Form::label('pangkat_golongan', 'Pangkat / Golongan:') !!}
-                {!! Form::text('pangkat_golongan', null, ['class' => 'form-control', 'placeholder' => 'Cth: Penata Tk. I / III/d']) !!}
-                {!! $errors->first('pangkat_golongan','<span class="help-block">:message</span>') !!}
-            </div>
+            <div class="clearfix"></div>
 
             <div class="form-group col-sm-6 {{ $errors->has('jabatan') ? 'has-error' :'' }}">
-                {!! Form::select('jabatan', [
+                {!! Form::label('jabatan', 'Jabatan:') !!} {!! Form::select('jabatan', [
                     'Pegawai' => 'Pegawai Biasa', 
                     'Operator' => 'Operator (Manajemen Data)',
                     'Admin' => 'Administrator (Akses Penuh)',
@@ -34,10 +46,11 @@
             </div>
 
             <div class="form-group col-sm-6 {{ $errors->has('address') ? 'has-error' :'' }}">
-                {!! Form::label('address', 'Unit Kerja / Instansi:') !!}
+                {!! Form::label('address', 'Unit Kerja:') !!}
                 {!! Form::text('address', null, ['class' => 'form-control']) !!}
                 {!! $errors->first('address','<span class="help-block">:message</span>') !!}
             </div>
+            <div class="clearfix"></div>
 
             <div class="form-group col-sm-6 {{ $errors->has('no_hp') ? 'has-error' :'' }}">
                 {!! Form::label('no_hp', 'Nomor HP / WhatsApp:') !!}
@@ -50,12 +63,20 @@
                 {!! Form::email('email', null, ['class' => 'form-control']) !!}
                 {!! $errors->first('email','<span class="help-block">:message</span>') !!}
             </div>
+            <div class="clearfix"></div>
 
             <div class="form-group col-sm-6 {{ $errors->has('username') ? 'has-error' :'' }}">
                 {!! Form::label('username', 'Username Login:') !!}
                 {!! Form::text('username', null, ['class' => 'form-control']) !!}
                 {!! $errors->first('username','<span class="help-block">:message</span>') !!}
             </div>
+
+            <div class="form-group col-sm-6 {{ $errors->has('password') ? 'has-error' :'' }}">
+                {!! Form::label('password', 'Password Login:') !!}
+                {!! Form::password('password', ['class' => 'form-control']) !!}
+                {!! $errors->first('password','<span class="help-block">:message</span>') !!}
+            </div>
+            <div class="clearfix"></div>
 
             <div class="form-group col-sm-6">
                 {!! Form::label('divisi', 'Divisi Pegawai:') !!}
@@ -68,18 +89,12 @@
                 ], null, ['class' => 'form-control', 'placeholder' => '-- Pilih Divisi --']) !!}
             </div>
 
-            <div class="form-group col-sm-6 {{ $errors->has('password') ? 'has-error' :'' }}">
-                {!! Form::label('password', 'Password Login:') !!}
-                {!! Form::password('password', ['class' => 'form-control']) !!}
-                {!! $errors->first('password','<span class="help-block">:message</span>') !!}
-            </div>
-
-            {{--Status Field--}}
             <div class="form-group col-sm-6 {{ $errors->has('status') ? 'has-error' :'' }}">
                 {!! Form::label('status', 'Status Akun:') !!}
                 {!! Form::select('status', [config('constants.STATUS.ACTIVE') => 'Aktif', config('constants.STATUS.BLOCK') => 'Diblokir'],null, ['class'=>'form-control']); !!}
                 {!! $errors->first('status','<span class="help-block">:message</span>') !!}
             </div>
+
         </div>
     </div>
 </div>
@@ -88,9 +103,9 @@
     <div style="display: none;">
         <input name="global_permissions[]" type="checkbox" value="read documents" checked>
     </div>
-    @endcan
+@endcan
 
-<div class="form-group">
+<div class="form-group" style="margin-top: 20px;">
     {!! Form::submit('Simpan Data Pegawai', ['class' => 'btn btn-primary']) !!}
     <a href="{!! route('users.index') !!}" class="btn btn-default">Batal</a>
 </div>

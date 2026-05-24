@@ -1,6 +1,11 @@
 <div class="form-group col-sm-6">
-    <label>Name:</label>
+    <label>Nama Folder:</label>
     {!! Form::text('name', null, ['class' => 'form-control']) !!}
+</div>
+
+<div class="form-group col-sm-6">
+    <label for="tags">Pilih / Tambah Folder (Bisa pilih lebih dari satu):</label>
+    {!! Form::select('tags[]', collect($tags)->pluck('name', 'id'), isset($document) ? $document->tags->pluck('id') : null, ['class' => 'form-control select2', 'multiple' => 'multiple', 'data-placeholder' => '-- Pilih Kategori Folder --']) !!}
 </div>
 
 <div class="clearfix"></div>

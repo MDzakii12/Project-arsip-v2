@@ -12,6 +12,8 @@ use App\Tag;
 use App\User;
 use Flash;
 use Response;
+use Illuminate\Support\Facades\Hash; 
+use Illuminate\Http\Request;
 
 class UserController extends AppBaseController
 {
@@ -228,4 +230,38 @@ class UserController extends AppBaseController
 
         return redirect()->route('users.index');
     }
+
+    public function changePasswordView()
+    {
+        return view('users.change_password');
+    }
+
+    public function changePasswordUpdate(Request $request)
+    {
+    // 1. Validasi inputan form
+    $request->validate([
+        'current_password' => 'required',
+        'password' => 'required|string|min:6|confirmed',
+    ], [
+        'password.confirmed' => 'Konfirmasi password baru tidak cocok.',
+        'password.min' => 'Password baru minimal harus 6 karakter.'
+    ]);
+
+    // 2. Cek apakah password lama yang dimasukkan cocok dengan di database
+    if (!(Hash::check($request->get('current_password'), auth()->user()->password))) {
+        return redirect()->back()->with("error", "Password lama yang kamu masukkan salah. Silakan coba lagi.");
+    }
+
+    // 3. Pastikan password baru beda dengan password lama
+    if (strcmp($request->get('current_password'), $request->get('password')) == 0) {
+        return redirect()->back()->with("error", "Password baru tidak boleh sama dengan password lama.");
+    }
+
+    // 4. Eksekusi simpan password baru ke database
+    $user = auth()->user();
+    $user->password = Hash::make($request->get('password'));
+    $user->save();
+
+    return redirect()->back()->with("success", "Password kamu berhasil diperbarui!");
+}
 }

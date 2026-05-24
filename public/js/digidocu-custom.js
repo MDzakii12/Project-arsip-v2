@@ -28,17 +28,22 @@ function registerTypeahead() {
 
 function conformDel(aa, event) {
     event.preventDefault();
-    swal({
+    
+    Swal.fire({
         title: "Are you sure?",
         text: "Once you click, Action can't be undo!",
-        icon: "error",
-        buttons: true,
-        dangerMode: true,
-    }).then((willDelete) => {
-        if (willDelete) {
+        icon: "error", 
+        showCancelButton: true, 
+        confirmButtonColor: "#d33", 
+        cancelButtonColor: "#aaa", 
+        confirmButtonText: "OK",
+        cancelButtonText: "Cancel"
+    }).then((result) => {
+        if (result.isConfirmed) { 
             aa.form.submit();
         }
     });
+    
     return false;
 }
 

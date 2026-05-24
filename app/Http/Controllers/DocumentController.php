@@ -178,6 +178,21 @@ class DocumentController extends Controller
         return redirect()->route('documents.index');
     }
 
+    public function updateFileDetail(\Illuminate\Http\Request $request, $id)
+    {
+        $file = \App\File::findOrFail($id);
+
+        $file->name = $request->name;
+        $file->status = $request->status;
+        $file->masa_guna = $request->masa_guna;
+        $file->lokasi_hard_copy = $request->lokasi_hard_copy;
+
+        $file->save();
+
+        Flash::success('Detail File Berhasil Diupdate!');
+        return redirect()->back();
+    }
+
     public function destroy($id)
     {
         $document = Document::findOrFail($id);
@@ -228,15 +243,18 @@ class DocumentController extends Controller
 
     public function storeFiles($id, CreateFilesRequest $request)
     {
+
         $document = Document::findOrFail($id);
         $this->authorize('update', [$document, $document->tags->pluck('id')]);
-        $filesData = $request->all('files')['files'] ?? [];
+        $filesData = $request->all()['files'] ?? [];
+        
         $filesData = $this->prepareFilesData($filesData);
+        
         $this->documentRepository->saveFilesWithDoc($filesData, $document);
-        $document->newActivity(count($filesData) . " New " . ucfirst(config('settings.file_label_plural')) . " Uploaded To " . ucfirst(config('settings.document_label_singular')));
+        $document->newActivity(count($filesData) . " New " . ucfirst(config('settings.file_label_plural')) . " Uploaded to " . ucfirst(config('settings.document_label_singular')));
         Flash::success(ucfirst(config('settings.file_label_plural')) . " Uploaded Successfully");
         if (!$request->ajax()) {
-            return redirect()->route('documents.show', ['id' => $document->id]);
+            return redirect()->route('documents.show', ['document' => $document->id]);
         } else {
             return ["msg" => "Success"];
         }
@@ -249,7 +267,6 @@ class DocumentController extends Controller
             $fileName = $file->hashName();
 
             // 1. Lakukan Resizing Gambar DULU (sebelum file dienkripsi)
-            // Mengambil source dari getRealPath() file sementara
             if (isImage($file->getMimeType())) {
                 foreach ($imageVariants as $imageVariant) {
                     $resizeSavePath = "app/files/$imageVariant/";
@@ -271,8 +288,7 @@ class DocumentController extends Controller
                     })->save(storage_path($thumbPath . $fileName));
             }
 
-            // 2. PROSES ENKRIPSI FILE ASLI (Kriptografi Tingkat Tinggi)
-            // Baca isi file -> Acak pakai kunci mesin -> Simpan ke folder
+            // 2. PROSES ENKRIPSI FILE ASLI
             $fileContents = file_get_contents($file->getRealPath());
             $encryptedContents = Crypt::encrypt($fileContents);
             Storage::put('files/original/' . $fileName, $encryptedContents);

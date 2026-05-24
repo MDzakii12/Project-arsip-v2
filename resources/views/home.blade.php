@@ -116,7 +116,7 @@
                         <form action="#" class="text-center" onsubmit="return gotoUpload()">
                             <div class="form-group">
                                 <label for="">Pilih Arsip Tujuan:</label>
-                                <select name="document_id" id="document_id" class="form-control select2" required>
+                                <select name="document_id" id="document_id" class="form-control select2" style="width: 100%;" required>
                                     <option value="">-- Pilih Dokumen Arsip --</option>
                                     @foreach ($documents as $document)
                                         @can('view',$document)

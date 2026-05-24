@@ -6,6 +6,22 @@
     </style>
 @stop
 @section('scripts')
+    <script>
+    function aturMasaGuna(elemenDropdown) {
+        var status = $(elemenDropdown).val();
+        
+        var kotakMasaGuna = $(elemenDropdown).closest('.box-body').find('.input-masa-guna');
+
+        if (status === 'Nonactive') {
+            kotakMasaGuna.val(''); 
+            kotakMasaGuna.prop('readonly', true); 
+            kotakMasaGuna.attr('placeholder', 'Tidak perlu diisi');
+        } else {
+            kotakMasaGuna.prop('readonly', false); 
+            kotakMasaGuna.attr('placeholder', 'Contoh: 5 Tahun / Permanen');
+        }
+    }
+    </script>
     <script id="file-row-template" type="text/x-handlebars-template">
         <div class="box box-primary file-row file-row-@{{index}}">
             <div class="box-header">
@@ -28,8 +44,25 @@
                     {!! Form::bsSelect('files[@{{index}}][file_type_id]', $fileTypes, null, ['class'=>'form-control'], ucfirst(config('settings.file_label_singular'))." Type") !!}
                     {!! Form::bsText('files[@{{index}}][name]', null, [], ucfirst(config('settings.file_label_singular'))." Name") !!}
                     <div class="clearfix"></div>
-                    {!! Form::bsText('files[@{{index}}][masa_guna]', null, ['placeholder' => 'Contoh: 5 Tahun / Permanen'], 'Masa Guna') !!}
-                    {!! Form::bsText('files[@{{index}}][lokasi_hard_copy]', null, ['placeholder' => 'Contoh: Lemari A, Rak 2'], 'Lokasi Hard Copy') !!}
+                    <div class="form-group">
+                        <label>Status Surat:</label>
+                        <select name="files[@{{index}}][status]" class="form-control" onchange="aturMasaGuna(this)">
+                            <option value="Active">Active</option>
+                            <option value="Nonactive">Nonactive</option>
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label>Masa Guna:</label>
+                            <input type="date" name="files[@{{index}}][masa_guna]" class="form-control input-masa-guna">
+                        </div>
+
+                        <div class="col-md-6 form-group">
+                            <label>Lokasi Hard Copy:</label>
+                            <input type="text" name="files[@{{index}}][lokasi_hard_copy]" class="form-control" placeholder="Contoh: Lemari A, Rak 2">
+                        </div>
+                    </div>
                     @foreach ($customFields as $customField)
                         {!! Form::bsText("files[@{{index}}][custom_fields][$customField->name]",null,['class'=>'form-control typeahead','data-source'=>json_encode($customField->suggestions),'autocomplete'=>is_array($customField->suggestions)?'off':'on'], Str::title(str_replace('_',' ',$customField->name))) !!}
                     @endforeach
@@ -42,10 +75,6 @@
         var rowIndex = 0;
         $(document).ready(function () {
             registerListener();
-            $("#frmUploads").submit(function (e) {
-                e.preventDefault();
-                submitForm(this);
-            });
             addRow();
         });
 

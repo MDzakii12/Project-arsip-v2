@@ -46,6 +46,39 @@
 @stop
 @section('scripts')
     <script src="https://cdn.scaleflex.it/plugins/filerobot-image-editor/3/filerobot-image-editor.min.js"></script>
+    <script>
+    function editFileModal(file) {
+        $('#edit_file_name').val(file.name);
+        $('#edit_file_status').val(file.status || 'Active'); 
+        $('#edit_file_lokasi_hard_copy').val(file.lokasi_hard_copy);
+        
+        if(file.masa_guna) {
+            var tanggal = file.masa_guna.split(' ')[0]; 
+            $('#edit_file_masa_guna').val(tanggal);
+        } else {
+            $('#edit_file_masa_guna').val('');
+        }
+
+        aturMasaGunaEdit();
+
+        var updateUrl = "{{ url('admin/files-update') }}/" + file.id;
+        $('#formEditFile').attr('action', updateUrl);
+
+        $('#modalEditFile').modal('show');
+    }
+
+    function aturMasaGunaEdit() {
+        var status = $('#edit_file_status').val();
+        var kotakMasaGuna = $('#edit_file_masa_guna');
+
+        if (status === 'Nonactive') {
+            kotakMasaGuna.val(''); 
+            kotakMasaGuna.prop('readonly', true); 
+        } else {
+            kotakMasaGuna.prop('readonly', false); 
+        }
+    }
+</script>
     <script id="file-modal-template" type="text/x-handlebars-template">
         <div id="fileModal" class="modal fade" role="dialog">
             <div class="modal-dialog modal-lg">
@@ -70,6 +103,12 @@
                                 <label>Uploaded By:</label>
                                 <p>
                                     @{{created_by.name}}
+                                </p>
+                            </div>
+                            <div class="form-group">
+                                <label>Status Surat:</label>
+                                <p>
+                                    <span class="label label-info">@{{status}}</span>
                                 </p>
                             </div>
                             <div class="form-group">
@@ -353,11 +392,17 @@
                                                     <ul class="dropdown-menu" role="menu">
                                                         <li><a href="javascript:void(0);"
                                                                onclick="showFileModal({{json_encode($file)}})">Show
-                                                                Detail</a></li>
+                                                                Detail</a>
+                                                        </li>
                                                         <li>
                                                             <a href="{{route('files.showfile',['dir'=>'original','file'=>$file->file])}}?force=true"
                                                                download>Download
                                                                 original</a>
+                                                        </li>
+                                                         <li>
+                                                            <a href="javascript:void(0);" onclick="editFileModal({{ json_encode($file) }})">
+                                                                <i class="fa fa-pencil" style="margin-right: 5px;"></i> Edit Detail
+                                                            </a>
                                                         </li>
                                                         @if (checkIsFileIsImage($file->file))
                                                             @foreach (explode(",",config('settings.image_files_resize')) as $varient)
@@ -644,4 +689,46 @@
             </div>
         </form>
     </div>
+    <div class="modal fade" id="modalEditFile" tabindex="-1" role="dialog" aria-labelledby="modalEditFileLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="modalEditFileLabel">Edit Detail File</h4>
+            </div>
+            <form id="formEditFile" method="POST" action="">
+                @csrf
+                @method('PUT')
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Nama File</label>
+                        <input type="text" class="form-control" name="name" id="edit_file_name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Status Surat</label>
+                        <select name="status" id="edit_file_status" class="form-control" onchange="aturMasaGunaEdit()">
+                            <option value="Active">Active</option>
+                            <option value="Nonactive">Nonactive</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Masa Guna</label>
+                        <input type="date" class="form-control" name="masa_guna" id="edit_file_masa_guna">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Lokasi Hard Copy</label>
+                        <input type="text" class="form-control" name="lokasi_hard_copy" id="edit_file_lokasi_hard_copy" placeholder="Contoh: Lemari A, Rak 2">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-primary">Update File</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection

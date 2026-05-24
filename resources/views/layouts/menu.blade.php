@@ -45,3 +45,11 @@
         </ul>
     </li>
 @endif
+
+@if(!auth()->user()->is_super_admin)
+<li class="{{ Request::is('admin/change-password*') ? 'active' : '' }}">
+    <a href="{{ route('password.change') }}">
+        <i class="fa fa-lock"></i> <span>Ganti Password</span>
+    </a>
+</li>
+@endif

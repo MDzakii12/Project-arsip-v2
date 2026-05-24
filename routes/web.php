@@ -18,6 +18,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\UserController;
+use Illuminate\Support\Facades\Storage;
 
 Route::get('/', function () {
     return redirect('/login');
@@ -43,12 +44,15 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth','check_block']], func
     });
     Route::resource('users', UserController::class);
     Route::get('/users-block/{user}',[UserController::class,'blockUnblock'])->name('users.blockUnblock');
+    Route::get('/change-password', [UserController::class, 'changePasswordView'])->name('password.change');
+    Route::post('/change-password', [UserController::class, 'changePasswordUpdate'])->name('password.update');
     Route::resource('tags', TagController::class);
 
     Route::resource('documents', DocumentController::class);
     Route::post('document-verify/{id}',[DocumentController::class,'verify'])->name('documents.verify');
     Route::post('document-store-permission/{id}',[DocumentController::class,'storePermission'])->name('documents.store-permission');
     Route::post('document-delete-permission/{document_id}/{user_id}',[DocumentController::class,'deletePermission'])->name('documents.delete-permission');
+    Route::put('files-update/{id}', [DocumentController::class, 'updateFileDetail']);
     Route::group(['prefix' => '/files-upload', 'as' => 'documents.files.'], function () {
         Route::get('/{id}', [DocumentController::class,'showUploadFilesUi'])->name('create');
         Route::post('/{id}', [DocumentController::class,'storeFiles'])->name('store');
@@ -58,4 +62,16 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth','check_block']], func
     Route::get('/_files/{dir?}/{file?}',[HomeController::class,'showFile'])->name('files.showfile');
     Route::get('/_zip/{id}/{dir?}',[HomeController::class,'downloadZip'])->name('files.downloadZip');
     Route::post('/_pdf',[HomeController::class,'downloadPdf'])->name('files.downloadPdf');
+});
+
+Route::get('/test-upload-drive', function () {
+    set_time_limit(300); // Suntikan waktu sabar 5 menit
+    
+    try {
+        Storage::disk('google')->put('bukti_sukses.txt', 'Lapor Komandan! Jembatan Google Drive di aplikasi E-Arsip sudah berjalan 100% lancar jaya!');
+        
+        return '<h1>BOOM! Jembatan Berhasil! File sukses terbang ke Google Drive! 🚀🔥</h1>';
+    } catch (\Exception $e) {
+        return '<h1>Gagal tembus, bray!</h1><p>Error: ' . $e->getMessage() . '</p>';
+    }
 });

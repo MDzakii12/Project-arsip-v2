@@ -3,7 +3,7 @@
 @section('content')
     <section class="content-header">
         <h1>
-            {{ucfirst(config('settings.tags_label_singular'))}}
+            Tambah Kategori Baru
         </h1>
     </section>
     <div class="content">

@@ -15,6 +15,9 @@ class Authenticate extends Middleware
     protected function redirectTo($request)
     {
         if (! $request->expectsJson()) {
+            // SUNTIKAN GAIB: Titip pesan error pas ditendang ke login
+            session()->flash('error', 'Your session has expired, please log in again.');
+            
             return route('login');
         }
     }

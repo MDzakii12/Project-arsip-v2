@@ -130,6 +130,11 @@
     <div class="login-box-body text-center">
         <i class="fa fa-building" style="font-size: 40px; color: #3c8dbc; margin-bottom: 10px;"></i>
         <p class="login-box-msg">LOGIN SYSTEM E-ARSIP<br>BPMP PROVINSI BANTEN</p>
+        @if(session('error'))
+            <div class="alert alert-danger text-center" style="border-radius: 5px; font-weight: bold; margin-bottom: 15px;">
+                <i class="fa fa-exclamation-triangle"></i> {{ session('error') }}
+            </div>
+        @endif
 
         <form method="post" action="{{ url('/login') }}">
             @csrf
