@@ -17,15 +17,12 @@ class TagDataTable extends DataTable
     public function dataTable($query)
     {
         $dataTable = new EloquentDataTable($query);
+        
         $dataTable = $dataTable->addColumn('action', 'tags.datatables_actions')
-            ->addColumn('created_by', function (Tag $tag) {
-                return $tag->createdBy->name;
-            })->editColumn('color', function (Tag $tag) {
-                return '<span class="label" style="background-color: ' . $tag->color . '">' . $tag->color . '</span>';
-            })->rawColumns(['color'], true)
-            ->filterColumn('created_by', function ($query, $keyword) {
-                return $query->whereRaw("select count(*) from users where lower(users.name) like ? and users.id=tags.created_by",["%$keyword%"]);
-            });
+            ->editColumn('label_warna', function (Tag $tag) {
+                return '<span class="label" style="background-color: ' . $tag->label_warna . '; padding: 5px 10px; border-radius: 4px; color: white;">' . $tag->label_warna . '</span>';
+            })
+            ->rawColumns(['label_warna', 'action']);
 
         return $dataTable;
     }
@@ -33,13 +30,12 @@ class TagDataTable extends DataTable
     /**
      * Get query source of dataTable.
      *
-     * @param \App\Models\Tag $model
+     * @param \App\Tag $model
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function query(Tag $model)
     {
-        $query = $model->newQuery()->with(['createdBy']);
-        return $query;
+        return $model->newQuery();
     }
 
     /**
@@ -51,13 +47,12 @@ class TagDataTable extends DataTable
     {
         return $this->builder()
             ->columns($this->getColumns())
-            ->addColumn(['data' => 'created_by'])
             ->minifiedAjax()
-            ->addAction(['width' => '120px', 'printable' => false])
+            ->addAction(['width' => '120px', 'printable' => false, 'title' => 'Aksi'])
             ->parameters([
                 'dom' => 'Bfrtip',
                 'stateSave' => true,
-                'order' => [[0, 'desc']],
+                'order' => [[0, 'desc']], 
                 'buttons' => [
                     ['extend' => 'export', 'className' => 'btn btn-default btn-sm no-corner',],
                     ['extend' => 'print', 'className' => 'btn btn-default btn-sm no-corner',],
@@ -74,9 +69,9 @@ class TagDataTable extends DataTable
     protected function getColumns()
     {
         return [
-            'id',
-            'name',
-            'color',
+            'id_kategori' => ['title' => 'ID'],
+            'nama_kategori' => ['title' => 'Nama Kategori'],
+            'label_warna' => ['title' => 'Warna Kategori']
         ];
     }
 
@@ -87,6 +82,6 @@ class TagDataTable extends DataTable
      */
     protected function filename(): string
     {
-        return 'tagsdatatable_' . time();
+        return 'KategoriArsip_' . time();
     }
 }

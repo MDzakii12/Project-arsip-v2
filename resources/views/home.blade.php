@@ -230,10 +230,10 @@
                         <ul class="nav nav-stacked">
                             @forelse($documents->take(5) as $doc)
                                 <li>
-                                    <a href="{{ route('documents.show', $doc->id) }}" style="padding: 15px 20px; font-size: 16px; color: #444; display: flex; align-items: center; justify-content: space-between;">
+                                    <a href="{{ route('documents.show', $doc->id_arsip) }}" style="padding: 15px 20px; font-size: 16px; color: #444; display: flex; align-items: center; justify-content: space-between;">
                                         <div>
                                             <i class="fa fa-file-pdf-o text-danger" style="font-size: 20px; margin-right: 15px; width: 20px; text-align: center;"></i> 
-                                            <strong>{{ $doc->name }}</strong>
+                                            <strong>{{ $doc->nama_arsip }}</strong>
                                         </div>
                                         <span class="text-muted" style="font-size: 13px;"><i class="fa fa-calendar"></i> {{ $doc->created_at->format('d M Y') }}</span>
                                     </a>

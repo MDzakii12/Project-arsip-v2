@@ -115,77 +115,67 @@
             <div class="box-body">
                 <div class="row">
                     @forelse ($documents as $document)
-                        @cannot('view',$document)
-                            @continue
-                        @endcannot
-                        <div class="col-lg-2 col-md-2 col-sm-4 col-xs-6 m-t-20" style="cursor:pointer;">
+                        <div class="col-lg-2 col-md-2 col-sm-4 col-xs-6 m-t-20" style="cursor:pointer;" onclick="window.location='{{ route('documents.show', $document->id_arsip) }}'">
                             <div class="doc-box box box-widget widget-user-2">
                                 <div class="widget-user-header bg-gray bg-folder-shaper no-padding">
                                     <div class="folder-shape-top bg-gray"></div>
                                     <div class="box-header">
-                                        <a href="{{route('documents.show',$document->id)}}" style="color: black;">
+                                        <a href="{{ route('documents.show', $document->id_arsip) }}" style="color: black;">
                                             <h3 class="box-title"><i class="fa fa-folder text-yellow"></i></h3>
                                         </a>
 
-                                        <div class="box-tools pull-right">
+                                        <div class="box-tools pull-right" onclick="event.stopPropagation();">
                                             <div class="btn-group">
-                                                <button type="button" class="btn btn-default btn-flat dropdown-toggle"
-                                                        data-toggle="dropdown" aria-expanded="false"
-                                                        style="    background: transparent;border: none;">
+                                                <button type="button" class="btn btn-default btn-flat dropdown-toggle" data-toggle="dropdown" aria-expanded="false" onclick="event.preventDefault(); event.stopPropagation(); $(this).parent().toggleClass('open');">
                                                     <i class="fa fa-ellipsis-v"></i>
                                                     <span class="sr-only">Toggle Dropdown</span>
                                                 </button>
                                                 <ul class="dropdown-menu dropdown-menu-left" role="menu">
                                                     <li>
-                                                        <a href="{{route('documents.show', $document->id)}}" style="padding: 6px 20px; color: #3c8dbc; font-weight: 500;">
-                                                            <i class="fa fa-eye" style="width: 20px;"></i> Show
+                                                        <a href="{{ route('documents.show', $document->id_arsip) }}" style="padding: 6px 20px; color: #3c8dbc; font-weight: 500;">
+                                                            <i class="fa fa-eye" style="width: 20px;"></i> Buka Folder
                                                         </a>
                                                     </li>
                                                     
-                                                    @can('edit', $document)
+                                                    @if(auth()->user()->is_super_admin)
                                                     <li>
-                                                        <a href="{{route('documents.edit', $document->id)}}" style="padding: 6px 20px; color: #f39c12; font-weight: 500;">
-                                                            <i class="fa fa-edit" style="width: 20px;"></i> Edit
-                                                            </a>
-                                                        </li>
-                                                    @endcan
-                                                    @can('delete',$document)
-                                                        {!! Form::open(['route' => ['documents.destroy', $document->id], 'method' => 'delete']) !!}
-                                                        {!! Form::button('<i class="fa fa-trash"></i> Delete', [
-                                                            'type' => 'button', 
-                                                            'class' => 'btn btn-link',
-                                                            'style' => 'width: 100%; text-align: left; padding: 3px 20px; color: #dc3545; text-decoration: none;',
-                                                            'onclick' => 'hapusFolder(this)'
-                                                        ]) !!}
-                                                    {!! Form::close() !!}
-                                                        </li>
-                                                    @endcan
-
+                                                        <a href="{{ route('documents.edit', $document->id_arsip) }}" style="padding: 6px 20px; color: #f39c12; font-weight: 500;">
+                                                            <i class="fa fa-edit" style="width: 20px;"></i> Edit Folder
+                                                        </a>
+                                                    </li>
+                                                    <li>
+                                                        <form action="{{ route('documents.destroy', $document->id_arsip) }}" method="POST" class="form-hapus-folder" style="display: inline; width: 100%;">
+                                                            {{ csrf_field() }}
+                                                            {{ method_field('DELETE') }}
+                                                            <button type="button" onclick="hapusFolderMewah(this)" class="btn btn-link" style="width: 100%; text-align: left; padding: 6px 20px; color: #dc3545; text-decoration: none; font-weight: 500;">
+                                                                <i class="fa fa-trash" style="width: 20px;"></i> Hapus Folder
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                    @endif
                                                 </ul>
                                             </div>
                                         </div>
                                     </div>
-                                    <!-- /.widget-user-image -->
-                                    <a href="{{route('documents.show',$document->id)}}" style="color: black;">
-                                    <span style="max-lines: 1; white-space: nowrap;margin-left: 3px;">
-                                    </span>
-                                        <h5 class="widget-user-username" title="{{$document->name}}"
-                                            data-toggle="tooltip">{{$document->name}}</h5>
-                                        <h5 class="widget-user-desc" style="font-size: 12px"><span data-toggle="tooltip"
-                                                                                                   title="{{formatDateTime($document->updated_at)}}">{{formatDate($document->updated_at)}}</span>
-                                            <span
-                                                class="pull-right" style="margin-right: 15px;">
-                                            {!! $document->isVerified ? '<i title="Verified" data-toggle="tooltip" class="fa fa-check-circle" style="color: #388E3C;"></i>':'<i title="Unverified" data-toggle="tooltip" class="fa fa-remove" style="color: #f44336;"></i>' !!}
-                                        </span></h5>
+                                    <a href="{{ route('documents.show', $document->id_arsip) }}" style="color: black; display: block; padding-bottom: 10px;">
+                                        <h5 class="widget-user-username" title="{{$document->nama_arsip}}" data-toggle="tooltip">
+                                            <strong>{{$document->nama_arsip}}</strong>
+                                        </h5>
+                                        <h5 class="widget-user-desc" style="font-size: 12px; color: #777;">
+                                            <i class="fa fa-clock-o"></i> {{ \Carbon\Carbon::parse($document->created_at)->format('d M Y') }}
+                                            
+                                            @if($document->divisi)
+                                                <span class="label label-info pull-right" style="margin-right: 15px;">{{ $document->divisi }}</span>
+                                            @endif
+                                        </h5>
                                     </a>
                                 </div>
                             </div>
-                            <!-- /.widget-user -->
                         </div>
                     @empty
                         <div class="col-md-12 text-center" style="padding: 60px 0;">
                             <i class="fa fa-folder-open-o" style="font-size: 50px; color: #ccc; margin-bottom: 15px;"></i>
-                            <h4 style="color: #888; font-weight: bold;">No matching records found</h4>
+                            <h4 style="color: #888; font-weight: bold;">Belum ada folder arsip.</h4>
                         </div>
                     @endforelse
                 </div>
@@ -196,4 +186,25 @@
         </div>
     </div>
     
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        function hapusFolderMewah(button) {
+            Swal.fire({
+                title: 'Konfirmasi Hapus Folder',
+                text: "Apakah Anda yakin ingin menghapus folder ini beserta seluruh isinya? Data arsip di dalamnya akan terhapus permanen.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33', // Merah bahaya
+                cancelButtonColor: '#3085d6', // Biru aman
+                confirmButtonText: '<i class="fa fa-bomb"></i> Ya, Hapus',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Kalau klik Ya, form otomatis nge-submit
+                    button.closest('form').submit();
+                }
+            })
+        }
+    </script>
+
 @endsection

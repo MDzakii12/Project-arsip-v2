@@ -14,6 +14,7 @@
         transform: none !important;
     }
 </style>
+
 <div class="box box-primary">
     <div class="box-header no-border">
         <h3 class="box-title">Data Profil Pegawai</h3>
@@ -21,10 +22,10 @@
     <div class="box-body">
         <div class="row">
 
-            <div class="form-group col-sm-6 {{ $errors->has('name') ? 'has-error' :'' }}">
-                {!! Form::label('name', 'Nama Lengkap:') !!}
-                {!! Form::text('name', null, ['class' => 'form-control']) !!}
-                {!! $errors->first('name','<span class="help-block">:message</span>') !!}
+            <div class="form-group col-sm-6 {{ $errors->has('nama_lengkap') ? 'has-error' :'' }}">
+                {!! Form::label('nama_lengkap', 'Nama Lengkap:') !!}
+                {!! Form::text('nama_lengkap', null, ['class' => 'form-control', 'required']) !!}
+                {!! $errors->first('nama_lengkap','<span class="help-block">:message</span>') !!}
             </div>
 
             <div class="form-group col-sm-6 {{ $errors->has('nip') ? 'has-error' :'' }}">
@@ -35,7 +36,8 @@
             <div class="clearfix"></div>
 
             <div class="form-group col-sm-6 {{ $errors->has('jabatan') ? 'has-error' :'' }}">
-                {!! Form::label('jabatan', 'Jabatan:') !!} {!! Form::select('jabatan', [
+                {!! Form::label('jabatan', 'Jabatan:') !!} 
+                {!! Form::select('jabatan', [
                     'Pegawai' => 'Pegawai Biasa', 
                     'Operator' => 'Operator (Manajemen Data)',
                     'Admin' => 'Administrator (Akses Penuh)',
@@ -45,10 +47,10 @@
                 {!! $errors->first('jabatan','<span class="help-block">:message</span>') !!}
             </div>
 
-            <div class="form-group col-sm-6 {{ $errors->has('address') ? 'has-error' :'' }}">
-                {!! Form::label('address', 'Unit Kerja:') !!}
-                {!! Form::text('address', null, ['class' => 'form-control']) !!}
-                {!! $errors->first('address','<span class="help-block">:message</span>') !!}
+            <div class="form-group col-sm-6 {{ $errors->has('id_divisi') ? 'has-error' :'' }}">
+                {!! Form::label('id_divisi', 'Divisi Pegawai:') !!}
+                {!! Form::select('id_divisi', \App\Divisi::pluck('nama_divisi', 'id_divisi'), null, ['class' => 'form-control', 'placeholder' => '-- Pilih Divisi --', 'required']) !!}
+                {!! $errors->first('id_divisi','<span class="help-block">:message</span>') !!}
             </div>
             <div class="clearfix"></div>
 
@@ -67,7 +69,7 @@
 
             <div class="form-group col-sm-6 {{ $errors->has('username') ? 'has-error' :'' }}">
                 {!! Form::label('username', 'Username Login:') !!}
-                {!! Form::text('username', null, ['class' => 'form-control']) !!}
+                {!! Form::text('username', null, ['class' => 'form-control', 'required']) !!}
                 {!! $errors->first('username','<span class="help-block">:message</span>') !!}
             </div>
 
@@ -78,21 +80,10 @@
             </div>
             <div class="clearfix"></div>
 
-            <div class="form-group col-sm-6">
-                {!! Form::label('divisi', 'Divisi Pegawai:') !!}
-                {!! Form::select('divisi', [
-                    'Paud' => 'PAUD', 
-                    'TK' => 'TK', 
-                    'SD' => 'SD', 
-                    'SMP' => 'SMP', 
-                    'SMA' => 'SMA'
-                ], null, ['class' => 'form-control', 'placeholder' => '-- Pilih Divisi --']) !!}
-            </div>
-
-            <div class="form-group col-sm-6 {{ $errors->has('status') ? 'has-error' :'' }}">
-                {!! Form::label('status', 'Status Akun:') !!}
-                {!! Form::select('status', [config('constants.STATUS.ACTIVE') => 'Aktif', config('constants.STATUS.BLOCK') => 'Diblokir'],null, ['class'=>'form-control']); !!}
-                {!! $errors->first('status','<span class="help-block">:message</span>') !!}
+            <div class="form-group col-sm-6 {{ $errors->has('status_akun') ? 'has-error' :'' }}">
+                {!! Form::label('status_akun', 'Status Akun:') !!}
+                {!! Form::select('status_akun', ['Aktif' => 'Aktif', 'Diblokir' => 'Diblokir'], null, ['class'=>'form-control']) !!}
+                {!! $errors->first('status_akun','<span class="help-block">:message</span>') !!}
             </div>
 
         </div>

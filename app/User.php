@@ -65,19 +65,18 @@ class User extends Authenticatable
     public $table = 'users';
 
     public $fillable = [
-        'name',
-        'email',
-        'username',
-        'address',
-        'description',
-        'password',
-        'status',
-        'nip',
-        'jabatan',
-        'pangkat_golongan',
-        'no_hp',
-        'divisi'
-    ];
+    'name',
+    'email',
+    'username',
+    'password',
+    'nama_lengkap',
+    'nip',
+    'jabatan',
+    'no_hp',
+    'id_divisi',
+    'status_akun',
+    'status' 
+];
 
     /**
      * The attributes that should be casted to native types.
@@ -145,5 +144,10 @@ class User extends Authenticatable
 //            });
 //        });
 //    }
+
+    public function data_divisi()
+    {
+        return $this->belongsTo(\App\Divisi::class, 'id_divisi', 'id_divisi');
+    }
 
 }

@@ -80,8 +80,14 @@ function isImage($mimeType)
 function checkIsFileIsImage($filepath)
 {
     if (!file_exists($filepath)) {
-        $filepath = storage_path('app/files/original/') . $filepath;
+        $filepath = storage_path('app/files/original/' . $filepath);
     }
+
+    // SUNTIKAN GAIB: Kalau dicari tetep nggak ada fisiknya, langsung return false aja biar nggak error (Data Hantu)
+    if (!file_exists($filepath)) {
+        return false;
+    }
+
     return isImage(mime_content_type($filepath));
 }
 

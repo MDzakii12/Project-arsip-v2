@@ -2,314 +2,229 @@
 
 namespace App\Http\Controllers;
 
-use App\CustomField;
 use App\Document;
-use App\File;
-use App\FileType;
-use App\Http\Requests\CreateDocumentRequest;
-use App\Http\Requests\CreateFilesRequest;
-use App\Http\Requests\UpdateDocumentRequest;
-use App\Repositories\CustomFieldRepository;
-use App\Repositories\DocumentRepository;
-use App\Repositories\FileTypeRepository;
-use App\Repositories\PermissionRepository;
-use App\Repositories\TagRepository;
-use App\Tag;
 use App\User;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\Facades\Image;
 use Laracasts\Flash\Flash;
-use Spatie\Permission\Models\Permission;
-use Illuminate\Support\Facades\Crypt;
 
 class DocumentController extends Controller
 {
-    private $tagRepository;
-    private $documentRepository;
-    private $customFieldRepository;
-    private $fileTypeRepository;
-    private $permissionRepository;
-
-    public function __construct(TagRepository $tagRepository,
-                                DocumentRepository $documentRepository,
-                                CustomFieldRepository $customFieldRepository,
-                                FileTypeRepository $fileTypeRepository,
-                                PermissionRepository $permissionRepository)
+   public function index(Request $request)
     {
-        $this->tagRepository = $tagRepository;
-        $this->documentRepository = $documentRepository;
-        $this->customFieldRepository = $customFieldRepository;
-        $this->fileTypeRepository = $fileTypeRepository;
-        $this->permissionRepository = $permissionRepository;
-    }
+        $user = auth()->user();
 
-    public function index(Request $request)
-    {
-        $this->authorize('viewAny', Document::class);
-        $documents = $this->documentRepository->searchDocuments(
-            $request->get('search'),
-            $request->get('tags'),
-            $request->get('status')
-        );
-        $tags = $this->tagRepository->all();
+        // 1. Cek apakah yang login Super Admin?
+        if ($user->is_super_admin) {
+            $documents = \App\Document::orderBy('created_at', 'desc')->paginate(10);
+        } else {
+            // Kacamata Kuda Anti-Bocor Total
+            $documents = \App\Document::where(function($query) use ($user) {
+                // 1. Jalur Pribadi (Milik dia sendiri)
+                $query->where('id_user', $user->id);
+                
+                // 2. Jalur Divisi (Cek HANYA JIKA user punya divisi yang valid & bukan NULL)
+                if ($user->divisi != null && $user->divisi != '') {
+                    $query->orWhere(function($q) use ($user) {
+                        $q->whereNotNull('divisi')->where('divisi', $user->divisi);
+                    });
+                }
+
+                // 3. Jalur Publik
+                $query->orWhere('divisi', 'Semua');
+            })->orderBy('created_at', 'desc')->paginate(10);
+        }
+
+        $tags = [];
+
         return view('documents.index', compact('documents', 'tags'));
     }
 
     public function create()
     {
-        //$this->authorize('create', Document::class);
-        $tags = $this->tagRepository->all();
-        $customFields = $this->customFieldRepository->getForModel('documents');
+        $kategori_arsip = \App\Tag::pluck('nama_kategori', 'id_kategori');
         
-        // SUNTIKAN GAIB: Ambil daftar nama pegawai untuk Form Admin
-        $pegawais = User::pluck('name', 'id');
-        
-        return view('documents.create', compact('tags', 'customFields', 'pegawais'));
+        $pegawais = \App\User::pluck('name', 'id');
+
+        return view('documents.create', compact('kategori_arsip', 'pegawais'));
     }
 
-    public function store(CreateDocumentRequest $request)
+    public function store(Request $request) 
     {
-        $data = $request->all();
-        
-        // SUNTIKAN GAIB: Jadikan pegawai yang dipilih Admin sebagai Pemilik Arsip
-        if (auth()->user()->is_super_admin && $request->has('pemilik_id')) {
-            $data['created_by'] = $request->pemilik_id;
-        } else {
-            $data['created_by'] = Auth::id();
+        // 1. Validasi Inputan
+        $request->validate([
+            'nama_arsip' => 'required',
+            'id_kategori' => 'required|array' 
+        ]);
+
+        // 2. Tentukan Hak Akses Personal
+        $idUser = $request->input('id_user') ?: auth()->id();
+
+        // 3. Simpan Data Folder Utama (Level 1) ke tabel `arsip`
+        $document = \App\Document::create([
+            'nama_arsip' => $request->input('nama_arsip'),
+            'deskripsi'  => $request->input('deskripsi'),
+            'id_user'    => $idUser,
+            'divisi'     => $request->input('divisi'), 
+        ]);
+
+        // 4. Simpan Relasi Kategori Pakai Cara Preman (Jaminan 100% Masuk!)
+        if ($request->has('id_kategori')) {
+            foreach($request->input('id_kategori') as $kat_id) {
+                \Illuminate\Support\Facades\DB::table('arsip_kategori')->insert([
+                    'id_arsip'    => $document->id_arsip,
+                    'id_kategori' => $kat_id
+                ]);
+            }
         }
 
-        if (auth()->check() && !auth()->user()->is_super_admin) {
-            $data['divisi'] = auth()->user()->divisi;
-        }
+        // 5. Pencatatan Log
+        $document->newActivity("Membuat folder baru");
 
-        $data['status'] = config('constants.STATUS.PENDING');
-        // $this->authorize('store', [Document::class, $data['tags']]);
-
-        $document = $this->documentRepository->createWithTags($data);
-        Flash::success(ucfirst(config('settings.document_label_singular')) . " Berhasil Disimpan!");
-        $document->newActivity(ucfirst(config('settings.document_label_singular')) . " Created");
-
-        foreach (config('constants.DOCUMENT_LEVEL_PERMISSIONS') as $perm_key => $perm) {
-            Permission::create(['name' => $perm_key . $document->id]);
-        }
-
-        if ($request->has('savnup')) {
-            return redirect()->route('documents.files.create', $document->id);
-        }
+        \Flash::success("Folder Utama (Level 1) Berhasil Dibuat!");
         return redirect()->route('documents.index');
     }
 
     public function show($id)
     {
-        $document = $this->documentRepository->getOneEagerLoaded($id,['files', 'files.fileType', 'files.createdBy', 'activities', 'activities.createdBy', 'tags']);
+        $document = \App\Document::with('tags')->where('id_arsip', $id)->first();
+
         if (empty($document)) {
-            abort(404);
+            \Flash::error('Folder tidak ditemukan.');
+            return redirect(route('documents.index'));
         }
-        $this->authorize('view', $document);
 
-        $missigDocMsgs = $this->documentRepository->buildMissingDocErrors($document);
-        $dataToRet = compact('document', 'missigDocMsgs');
-
-        if (auth()->user()->can('user manage permission')) {
-            $users = User::where('id', '!=', 1)->get();
-            $thisDocPermissionUsers = $this->permissionRepository->getUsersWiseDocumentLevelPermissionsForDoc($document);
-            $tagWisePermList = $this->permissionRepository->getTagWiseUsersPermissionsForDoc($document);
-            $globalPermissionUsers = $this->permissionRepository->getGlobalPermissionsForDoc($document);
-
-            $dataToRet = array_merge($dataToRet, compact('users', 'thisDocPermissionUsers', 'tagWisePermList', 'globalPermissionUsers'));
-        }
-        return view('documents.show', $dataToRet);
+        return view('documents.show')->with('document', $document);
     }
-
-    public function storePermission($id, Request $request)
-    {
-        abort_if(!auth()->user()->can('user manage permission'), 403, 'This action is unauthorized .');
-        $input = $request->all();
-        $user = User::findOrFail($input['user_id']);
-        $doc_permissions = $input['document_permissions'];
-        $document = Document::findOrFail($id);
-        $this->permissionRepository->setDocumentLevelPermissionForUser($user,$document,$doc_permissions);
-        Flash::success(ucfirst(config('settings.document_label_singular')) . " Permission allocated");
-        return redirect()->back();
-    }
-
-    public function deletePermission($documentId, $userId)
-    {
-        abort_if(!auth()->user()->can('user manage permission'), 403, 'This action is unauthorized.');
-        $user = User::findOrFail($userId);
-        $document = Document::findOrFail($documentId);
-        $this->permissionRepository->deleteDocumentLevelPermissionForUser($document,$user);
-        Flash::success(ucfirst(config('settings.document_label_singular')) . " Permission removed");
-        return redirect()->back();
-    }
-
     public function edit($id)
     {
-        $document = Document::findOrFail($id);
-        $this->authorize('edit', $document);
-        $tags = Tag::all();
-        $customFields = $this->customFieldRepository->getForModel('documents');
+        // 1. Cari data folder sekalian bawa relasi tags-nya
+        $document = \App\Document::with('tags')->where('id_arsip', $id)->firstOrFail();
         
-        // SUNTIKAN GAIB: Ambil daftar nama pegawai
-        $pegawais = User::pluck('name', 'id');
+        // 2. Amunisi buat dropdown
+        $kategori_arsip = \App\Tag::pluck('nama_kategori', 'id_kategori');
+        $pegawais = \App\User::pluck('name', 'id');
+
+        // 3. AMUNISI BARU: Tarik ID kategori yang udah kepilih sebelumnya
+        $selected_tags = $document->tags->pluck('id_kategori')->toArray();
+
+        // 4. Kirim semua ke form edit
+        return view('documents.edit', compact('document', 'kategori_arsip', 'pegawais', 'selected_tags'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        // 1. Cari data foldernya
+        $document = \App\Document::where('id_arsip', $id)->firstOrFail();
         
-        return view('documents.edit', compact('tags', 'customFields', 'document', 'pegawais'));
-    }
+        // 2. Simpan nama baru, deskripsi baru, dll
+        $document->update($request->all());
 
-    public function update(UpdateDocumentRequest $request, $id)
-    {
-        $document = Document::findOrFail($id);
-        $data = $request->all();
-        
-        // SUNTIKAN GAIB: Admin bisa update pemilik arsip ini
-        if (auth()->user()->is_super_admin && $request->has('pemilik_id')) {
-            $data['created_by'] = $request->pemilik_id;
-        }
-
-        $this->authorize('update', [$document, $data['tags']]);
-        $this->documentRepository->updateWithTags($data,$document);
-        $document->newActivity(ucfirst(config('settings.document_label_singular')) . " Updated");
-        Flash::success(ucfirst(config('settings.document_label_singular')) . " Berhasil Diupdate!");
-        return redirect()->route('documents.index');
-    }
-
-    public function updateFileDetail(\Illuminate\Http\Request $request, $id)
-    {
-        $file = \App\File::findOrFail($id);
-
-        $file->name = $request->name;
-        $file->status = $request->status;
-        $file->masa_guna = $request->masa_guna;
-        $file->lokasi_hard_copy = $request->lokasi_hard_copy;
-
-        $file->save();
-
-        Flash::success('Detail File Berhasil Diupdate!');
-        return redirect()->back();
-    }
-
-    public function destroy($id)
-    {
-        $document = Document::findOrFail($id);
-        $this->authorize('delete', $document);
-        $document->newActivity(ucfirst(config('settings.document_label_singular')) . " Deleted");
-        $this->documentRepository->deleteWithFiles($document,true);
-        Flash::success(ucfirst(config('settings.document_label_singular')) . " Berhasil Dihapus!");
-        return redirect()->route('documents.index');
-    }
-
-    public function verify($id, Request $request)
-    {
-        $document = Document::findOrFail($id);
-        $this->authorize('verify', $document);
-        $action = $request->get('action');
-        $comment = $request->get('vcomment',"");
-        if (!empty($comment)) {
-            $comment = " with comment: <i>" . $comment . "</i>";
-        }
-        $msg = "";
-        if ($action == 'approve') {
-            $this->documentRepository->approveDoc($document);
-            $msg = "Approved";
-        } elseif ($action == 'reject') {
-            $this->documentRepository->rejectDoc($document);
-            $msg = "Rejected";
+        // 3. Simpan perubahan Kategori / Level 2
+        // Pastikan 'tags' ini sama dengan attribute 'name' di tag <select> lu
+        if ($request->has('id_kategori')) {
+            $document->tags()->sync($request->id_kategori);
         } else {
-            abort(404);
+            $document->tags()->detach();
         }
-        $document->newActivity(ucfirst(config('settings.document_label_singular')) . " $msg $comment");
 
-        Flash::success(ucfirst(config('settings.document_label_singular')) . " $msg Successfully");
+        // 4. Notifikasi dan tendang balik
+        Flash::success("Data Folder berhasil diperbarui Komandan!");
+        return redirect(route('documents.index'));
+    }
+    public function destroy($id) { 
+        Document::destroy($id);
+        Flash::success("Arsip Berhasil Dihapus!");
         return redirect()->back();
     }
 
     public function showUploadFilesUi($id)
     {
-        $document = Document::find($id);
-        if(empty($document)){
-            Flash::error("Oh No..., try to create some ".config('settings.document_label_singular')." before uploading ".config('settings.file_label_plural'));
-            return redirect()->route('documents.index');
-        }
-        //$this->authorize('update', [$document, $document->tags->pluck('id')]);
-        $fileTypes = FileType::pluck('name', 'id');
-        $customFields = $this->customFieldRepository->getForModel('files');
+        $document = \App\Document::with('tags')->where('id_arsip', $id)->firstOrFail();
+        
+        // TRIK BAJAKAN: Ambil pilihan dari Kategori Arsip, BUKAN dari Tipe File General
+        $fileTypes = $document->tags->pluck('nama_kategori', 'id_kategori')->toArray();
+        
+        $customFields = []; 
         return view('documents.file_upload', compact('document', 'fileTypes', 'customFields'));
     }
 
-    public function storeFiles($id, CreateFilesRequest $request)
+    public function storeFiles(Request $request, $id)
     {
+        $document = \App\Document::where('id_arsip', $id)->firstOrFail();
 
-        $document = Document::findOrFail($id);
-        $this->authorize('update', [$document, $document->tags->pluck('id')]);
-        $filesData = $request->all()['files'] ?? [];
-        
-        $filesData = $this->prepareFilesData($filesData);
-        
-        $this->documentRepository->saveFilesWithDoc($filesData, $document);
-        $document->newActivity(count($filesData) . " New " . ucfirst(config('settings.file_label_plural')) . " Uploaded to " . ucfirst(config('settings.document_label_singular')));
-        Flash::success(ucfirst(config('settings.file_label_plural')) . " Uploaded Successfully");
-        if (!$request->ajax()) {
-            return redirect()->route('documents.show', ['document' => $document->id]);
-        } else {
-            return ["msg" => "Success"];
+        $uploadedFiles = $request->file('files', []);
+        $filesData = $request->input('files', []);
+
+        if (empty($uploadedFiles)) {
+            \Flash::error('Tidak ada file yang dipilih untuk diupload.');
+            return redirect()->back();
         }
-    }
 
-    private function prepareFilesData($filesData){
-        $imageVariants = explode(',', config('settings.image_files_resize'));
-        foreach ($filesData as $i => $fileData) {
-            $file = $filesData[$i]['file'];
-            $fileName = $file->hashName();
+        foreach ($uploadedFiles as $index => $fileData) {
+            if (isset($fileData['file'])) {
+                $file = $fileData['file'];
+                
+                // Ambil isi file dan nama aslinya sebelum dipindah-pindah
+                $fileContents = file_get_contents($file);
+                $namaFileAsli = $file->getClientOriginalName();
+                
+                // Bikin nama unik HANYA untuk di lokal laptop (biar OS Windows/Linux ga bentrok)
+                $fileName = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                
+                // [JALUR 1] SIMPAN KE LAPTOP: Biar fitur Lihat/Download di web langsung lancar
+                $file->move(storage_path('app/files/original'), $fileName);
 
-            // 1. Lakukan Resizing Gambar DULU (sebelum file dienkripsi)
-            if (isImage($file->getMimeType())) {
-                foreach ($imageVariants as $imageVariant) {
-                    $resizeSavePath = "app/files/$imageVariant/";
-                    if (!file_exists(storage_path($resizeSavePath))) {
-                        mkdir(storage_path($resizeSavePath), 0755, true);
-                    }
-                    $imageIntervention = Image::make($file->getRealPath());
-                    $imageIntervention->resize($imageVariant, null, function ($constraint) {
-                        $constraint->aspectRatio();
-                    })->save(storage_path($resizeSavePath . $fileName));
-                }
-                $thumbPath = "app/files/thumb/";
-                if (!file_exists(storage_path($thumbPath))) {
-                    mkdir(storage_path($thumbPath), 0755, true);
-                }
-                Image::make($file->getRealPath())
-                    ->resize(193, null, function ($constraint) {
-                        $constraint->aspectRatio();
-                    })->save(storage_path($thumbPath . $fileName));
+                $metaData = $filesData[$index] ?? [];
+
+                // [JALUR 2] BACKUP KE GDRIVE: Cari tahu nama kategori
+                $kategori = \App\Tag::where('id_kategori', $metaData['file_type_id'] ?? null)->first();
+                $nama_kategori = $kategori ? $kategori->nama_kategori : 'Tanpa_Kategori';
+
+                // Bikin struktur strata GDrive tapi pake NAMA ASLI UTUH tanpa acakan angka
+                $nama_arsip = $document->nama_arsip;
+                $jalur_strata_gdrive = $nama_arsip . '/' . $nama_kategori . '/' . $namaFileAsli;
+
+                // Kirim ke Google Drive sebagai backup rapi
+                \Storage::disk('google')->put($jalur_strata_gdrive, $fileContents);
+
+                // [JALUR 3] CATAT KE DATABASE: Pake nama lokal biar sistem ga bingung nyari filenya
+                \App\File::create([
+                    'id_arsip'         => $document->id_arsip,
+                    'file_type_id'     => $metaData['file_type_id'] ?? null,
+                    'created_by'       => auth()->id(),
+                    'name'             => $metaData['name'] ?? $namaFileAsli,
+                    'file'             => $fileName, // Mengunci ke file lokal laptop
+                    'masa_guna'        => $metaData['masa_guna'] ?? null,
+                    'lokasi_hard_copy' => $metaData['lokasi_hard_copy'] ?? null,
+                    'status'           => $metaData['status'] ?? 'Active',
+                ]);
             }
-
-            // 2. PROSES ENKRIPSI FILE ASLI
-            $fileContents = file_get_contents($file->getRealPath());
-            $encryptedContents = Crypt::encrypt($fileContents);
-            Storage::put('files/original/' . $fileName, $encryptedContents);
-
-            // 3. Simpan data ke database
-            $filesData[$i]['custom_fields'] = json_encode($filesData[$i]['custom_fields'] ?? []);
-            $filesData[$i]['file'] = $fileName;
-            $filesData[$i]['created_by'] = Auth::id();
-            $filesData[$i]['created_at'] = now();
-            $filesData[$i]['updated_at'] = now();
         }
-        return $filesData;
+
+        $document->newActivity("Mengunggah file baru ke arsip (Lokal & Backup GDrive)");
+
+        \Flash::success('Sempurna! File tersimpan di laptop dan ter-backup rapi di Google Drive!');
+        
+        return redirect()->route('documents.show', $document->id_arsip);
     }
+
 
     public function deleteFile($id)
     {
-        $file = File::findOrFail($id);
-        $this->authorize('delete', $file->document);
-        $file->document->newActivity($file->name . " Deleted From " . ucfirst(config('settings.document_label_singular')));
-        $this->documentRepository->deleteFile($file);
-        Flash::success(ucfirst(config('settings.file_label_singular')) . " Deleted Successfully");
+        // 1. Cari data filenya di database
+        $file = \App\File::findOrFail($id);
+
+        // 2. MANTRA SAKTI: Hapus fisik filenya dari Google Drive
+        if (\Storage::disk('google')->exists($file->file)) {
+            \Storage::disk('google')->delete($file->file);
+        }
+
+        // 3. Hapus catatannya dari database MySQL lu
+        $file->delete();
+
+        \Flash::success('Sip! File berhasil dihapus dari Sistem dan Google Drive!');
         return redirect()->back();
-    }
+    }    
+
 }

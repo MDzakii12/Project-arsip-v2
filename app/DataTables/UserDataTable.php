@@ -17,13 +17,18 @@ class UserDataTable extends DataTable
     public function dataTable($query)
     {
         $dataTable = new EloquentDataTable($query);
+
         return $dataTable->addColumn('action', 'users.datatables_actions')
-            ->editColumn('status',function (User $user){
-                if($user->status==config('constants.STATUS.ACTIVE'))
-                    return '<span class="label label-success">'.$user->status.'</span>';
-                else
-                    return '<span class="label label-danger">'.$user->status.'</span>';
-            })->rawColumns(['action','status']);
+            
+            ->editColumn('status_akun', function ($user) {
+                if ($user->status_akun == 'Aktif') {
+                    return '<span class="label label-success" style="font-size: 12px;">Aktif</span>';
+                } else {
+                    return '<span class="label label-danger" style="font-size: 12px;">Diblokir</span>';
+                }
+            })
+            
+            ->rawColumns(['action', 'status_akun']);
     }
 
     /**
@@ -34,7 +39,7 @@ class UserDataTable extends DataTable
      */
     public function query(User $model)
     {
-        return $model->newQuery()->where('id','!=',1);
+        return $model->newQuery()->with('data_divisi')->where('id', '!=', 1);
     }
 
     /**
@@ -68,14 +73,21 @@ class UserDataTable extends DataTable
     protected function getColumns()
     {
         return [
-            'name' => ['title' => 'Nama Lengkap'],
+            'nama_lengkap' => ['title' => 'Nama Lengkap'],
             'nip' => ['title' => 'NIP'],
             'jabatan' => ['title' => 'Jabatan'],
-            'divisi' => ['title' => 'Divisi'],
-            'pangkat_golongan' => ['title' => 'Pangkat / Golongan'],
+            
+            // Kacamata Super: Panggil relasi data_divisi biar yang muncul namanya, bukan angkanya
+            'divisi' => [
+                'title' => 'Divisi', 
+                'data' => 'data_divisi.nama_divisi', 
+                'name' => 'data_divisi.nama_divisi',
+                'defaultContent' => '-'
+            ],
+            
             'no_hp' => ['title' => 'No. HP / WA'],
             'username' => ['title' => 'Username Login'],
-            'status' => ['title' => 'Status Akun']
+            'status_akun' => ['title' => 'Status Akun']
         ];
     }
 

@@ -10,7 +10,7 @@
        <div class="box box-primary">
            <div class="box-body">
                <div class="row">
-                   {!! Form::model($tag, ['route' => ['tags.update', $tag->id], 'method' => 'patch']) !!}
+                   {!! Form::model($tag, ['route' => ['tags.update', $tag->id_kategori], 'method' => 'patch']) !!}
 
                         @include('tags.fields')
 

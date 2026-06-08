@@ -18,7 +18,9 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\DivisiController;
 use Illuminate\Support\Facades\Storage;
+
 
 Route::get('/', function () {
     return redirect('/login');
@@ -47,7 +49,8 @@ Route::group(['prefix' => 'admin', 'middleware' => ['auth','check_block']], func
     Route::get('/change-password', [UserController::class, 'changePasswordView'])->name('password.change');
     Route::post('/change-password', [UserController::class, 'changePasswordUpdate'])->name('password.update');
     Route::resource('tags', TagController::class);
-
+    Route::resource('divisi', DivisiController::class);
+    Route::resource('divisi', DivisiController::class);
     Route::resource('documents', DocumentController::class);
     Route::post('document-verify/{id}',[DocumentController::class,'verify'])->name('documents.verify');
     Route::post('document-store-permission/{id}',[DocumentController::class,'storePermission'])->name('documents.store-permission');

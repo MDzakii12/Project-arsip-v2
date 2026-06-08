@@ -55,7 +55,7 @@
                     <div class="row">
                         <div class="col-md-6 form-group">
                             <label>Masa Guna:</label>
-                            <input type="date" name="files[@{{index}}][masa_guna]" class="form-control input-masa-guna">
+                            <input type="date" name="masa_guna" class="form-control" min="{{ date('Y-m-d', strtotime('+1 day')) }}">
                         </div>
 
                         <div class="col-md-6 form-group">
@@ -150,11 +150,11 @@
             $(frm).find("button[type='submit']").html('<i class="fa fa-spinner fa-spin"></i> Uploading...').attr("disabled", true);
             var formData = new FormData(frm);
             $.ajax({
-                url: '{{route('documents.files.store',$document->id)}}',
+                url: '{{route('documents.files.store',$document->id_arsip)}}',
                 type: 'POST',
                 data: formData,
                 success: function (data) {
-                    window.location.href = "{{route('documents.show',$document->id)}}";
+                    window.location.href = "{{route('documents.show',$document->id_arsip)}}";
                 },
                 error: function (err) {
                     if (err.status === 422) {
@@ -196,7 +196,7 @@
                 <a href="{{route('fileTypes.create')}}">Add {{config('settings.file_label_singular')." type"}}</a>
             </div>
         @endif
-        {!! Form::open(['route' => ['documents.files.store',$document->id],'files'=>true, 'id'=>'frmUploads']) !!}
+        {!! Form::open(['route' => ['documents.files.store',$document->id_arsip],'files'=>true, 'id'=>'frmUploads']) !!}
         <div id="files_container">
 
         </div>

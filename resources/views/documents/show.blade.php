@@ -186,8 +186,8 @@
     </div>
     <section class="content-header" style="margin-bottom: 27px;">
         <h1 class="pull-left">
-            {{ucfirst(config('settings.document_label_singular'))}}
-            <small>{{$document->name}}</small>
+            Detail Folder
+            <small>{{$document->nama_arsip}}</small>
         </h1>
         <h1 class="pull-right" style="margin-bottom: 5px;">
             <div class="dropdown" style="display: inline-block">
@@ -196,31 +196,29 @@
                     <span class="caret"></span></button>
                 <ul class="dropdown-menu">
                     <li>
-                        <a href="{{route('files.downloadZip',['dir'=>'all','id'=>$document->id])}}">All</a>
+                        <a href="{{route('files.downloadZip',['dir'=>'all','id'=>$document->id_arsip])}}">All</a>
                     </li>
                     <li>
-                        <a href="{{route('files.downloadZip',['dir'=>'original','id'=>$document->id])}}">Original</a>
+                        <a href="{{route('files.downloadZip',['dir'=>'original','id'=>$document->id_arsip])}}">Original</a>
                     </li>
                     @foreach (explode(",",config('settings.image_files_resize')) as $varient)
                         <li>
-                            <a href="{{route('files.downloadZip',['dir'=>$varient,'id'=>$document->id])}}">{{$varient}}w
+                            <a href="{{route('files.downloadZip',['dir'=>$varient,'id'=>$document->id_arsip])}}">{{$varient}}w
                                 (Images Only)</a>
                         </li>
                     @endforeach
                 </ul>
             </div>
-            @can('edit', $document)
-                <a href="{{route('documents.edit', $document->id)}}" class="btn btn-primary"><i class="fa fa-edit"></i>
+            @if(auth()->user()->is_super_admin)
+                <a href="{{route('documents.edit', $document->id_arsip)}}" class="btn btn-primary"><i class="fa fa-edit"></i>
                     Edit</a>
-            @endcan
-            @can('delete', $document)
-                {!! Form::open(['route' => ['documents.destroy', $document->id], 'method' => 'delete', 'style'=>'display:inline;']) !!}
-                <button class="btn btn-danger" onclick="conformDel(this,event)" type="submit"><i
+                {!! Form::open(['route' => ['documents.destroy', $document->id_arsip], 'method' => 'delete', 'style'=>'display:inline;']) !!}
+                <button class="btn btn-danger" onclick="return confirm('Yakin mau hapus folder ini?')" type="submit"><i
                         class="fa fa-trash"></i>
                     Delete
                 </button>
                 {!! Form::close() !!}
-            @endcan
+            @endif
         </h1>
     </section>
     <div class="content">
@@ -231,455 +229,199 @@
         <div class="clearfix"></div>
         <div class="row">
             <div class="col-sm-3">
-                <div class="box box-primary">
+                <div class="box box-primary custom-box">
+                    <div class="box-header">
+                        <h3 class="box-title" style="font-size: 16px;"><i class="fa fa-info-circle"></i> Info Folder</h3>
+                    </div>
                     <div class="box-body">
                         <div class="form-group">
-                            <label>{{ucfirst(config('settings.document_label_singular'))}} Name:</label>
-                            <p>{{$document->name}}</p>
+                            <label>Nama Folder:</label>
+                            <p style="font-size: 16px; font-weight: bold; color: #3c8dbc;">{{$document->nama_arsip}}</p>
                         </div>
                         <div class="form-group">
-                            <label>{{ucfirst(config('settings.tags_label_plural'))}}:</label>
+                            <label>Kategori:</label>
                             <p>
                                 @foreach ($document->tags as $tag)
-                                    <small class="label"
-                                           style="background-color: {{$tag->color}};">{{$tag->name}}</small>
+                                    <small class="label" style="background-color: {{ $tag->label_warna ?? '#fbbc04' }}; color: #fff; margin-right: 3px; display: inline-block; margin-bottom: 3px;">
+                                        <i class="fa fa-folder"></i> {{$tag->nama_kategori}}
+                                    </small>
                                 @endforeach
                             </p>
                         </div>
-                        @foreach ($document->custom_fields??[] as $custom_field_name=>$custom_field_value)
-                            <div class="form-group">
-                                {!! Form::label($custom_field_name, Str::title(str_replace('_',' ',$custom_field_name)).":") !!}
-                                <p>{{ $custom_field_value }}</p>
-                            </div>
-                        @endforeach
                         <div class="form-group">
-                            <label>Description:</label>
-                            <p>{!! $document->description !!}</p>
+                            <label>Deskripsi:</label>
+                            <p>{!! $document->deskripsi ?? '<i class="text-muted">Tidak ada deskripsi</i>' !!}</p>
                         </div>
                         <div class="form-group">
-                            <label>Status:</label>
-                            @if ($document->status==config('constants.STATUS.PENDING'))
-                                <span class="label label-warning">{{$document->status}}</span>
-                            @elseif($document->status==config('constants.STATUS.APPROVED'))
-                                <span class="label label-success">{{$document->status}}</span>
-                            @else
-                                <span class="label label-danger">{{$document->status}}</span>
-                            @endif
+                            <label>Hak Akses Personal:</label>
+                            <p><i class="fa fa-user"></i> {{ $document->createdBy->name ?? 'Semua Pegawai' }}</p>
                         </div>
+                        @if($document->divisi)
                         <div class="form-group">
-                            <label>Created By:</label> {{$document->createdBy->name}}
+                            <label>Hak Akses Divisi:</label>
+                            <p><i class="fa class="fa fa-users"></i> <span class="label label-info">{{ $document->divisi }}</span></p>
                         </div>
+                        @endif
                         <div class="form-group">
-                            <label>Created At:</label>
-                            <p>{!! formatDateTime($document->created_at) !!} <br>
-                                ({{\Carbon\Carbon::parse($document->created_at)->diffForHumans()}})
-                            </p>
-                        </div>
-                        <div class="form-group">
-                            <label>Last Updated:</label>
-                            <p>{!! formatDateTime($document->updated_at) !!} <br>
-                                ({{\Carbon\Carbon::parse($document->updated_at)->diffForHumans()}})
-                            </p>
+                            <label>Dibuat Pada:</label>
+                            <p><i class="fa fa-calendar"></i> {!! formatDateTime($document->created_at) !!}</p>
                         </div>
                     </div>
                 </div>
             </div>
+
             <div class="col-sm-9">
                 <div class="nav-tabs-custom">
                     <ul class="nav nav-tabs">
-                        <li class="active"><a href="#tab_files" data-toggle="tab"
-                                              aria-expanded="true">{{ucfirst(config('settings.file_label_plural'))}}</a>
-                        </li>
-                        @can('verify', $document)
-                            <li class=""><a href="#tab_verification" data-toggle="tab"
-                                            aria-expanded="false">Verification</a></li>
-                        @endcan
-                        <li class=""><a href="#tab_activity" data-toggle="tab" aria-expanded="false">Activity</a></li>
-                        @can('user manage permission')
-                            <li class=""><a href="#tab_permissions" data-toggle="tab"
-                                            aria-expanded="false">Permission</a>
-                            </li>
-                        @endcan
+                        <li class="active"><a href="#tab_files" data-toggle="tab" aria-expanded="true"><i class="fa fa-folder-open"></i> Isi Folder</a></li>
+                        <li class=""><a href="#tab_activity" data-toggle="tab" aria-expanded="false"><i class="fa fa-history"></i> Riwayat Aktivitas</a></li>
                     </ul>
                     <div class="tab-content">
                         <div class="tab-pane active" id="tab_files">
-                            @if (config('settings.show_missing_files_errors')=='true' && $document->status!=config('constants.STATUS.APPROVED') && count($missigDocMsgs)!=0)
-                                <div class="alert alert-danger fade in alert-dismissible">
-                                    <button class="close" data-dismiss="alert" aria-label="close" title="close">
-                                        &times;
-                                    </button>
-                                    <strong>The Following {{ucfirst(config('settings.file_label_plural'))}} Are
-                                        Missing:</strong>
-                                    <ul style="padding-inline-start: 20px;">
-                                        @foreach ($missigDocMsgs as $msg)
-                                            <li>{{$msg}}</li>
-                                        @endforeach
-                                    </ul>
-                                </div>
-                            @endif
-                           <div id="level2-folders" class="row" style="margin-bottom: 20px;">
+                            
+                            <div id="level2-folders" class="row" style="margin-bottom: 20px;">
                                 @foreach($document->tags as $tag)
-                                <div class="col-md-3 col-sm-4 col-xs-12" style="margin-bottom: 15px;">
-                                    <div class="box custom-box" onclick="openFolder('{{ $tag->name }}')" 
+                                <div class="col-md-4 col-sm-6 col-xs-12" style="margin-bottom: 15px;">
+                                    <div class="box custom-box" onclick="openFolder('{{ $tag->nama_kategori }}')" 
                                         style="cursor: pointer; border-radius: 8px; border: 1px solid #dadce0; padding: 12px 15px; display: flex; align-items: center; background: #fff; transition: background 0.2s; margin-bottom: 0;"
                                         onmouseover="this.style.backgroundColor='#f8f9fa'" onmouseout="this.style.backgroundColor='#fff'">
-                                        <i class="fa fa-folder" style="font-size: 24px; color: #fbbc04; margin-right: 15px;"></i>
-                                        <span style="font-weight: 600; color: #3c4043; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ $tag->name }}</span>
+                                        <i class="fa fa-folder" style="font-size: 30px; color: #fbbc04; margin-right: 15px;"></i>
+                                        <span style="font-weight: 600; color: #3c4043; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ $tag->nama_kategori }}</span>
                                     </div>
                                 </div>
                                 @endforeach
-                                @can('update', [$document, $document->tags->pluck('id')])
-                                <div class="col-md-3 col-sm-4 col-xs-12" style="margin-bottom: 15px;">
-                                    <a href="{{ route('documents.edit', $document->id) }}" style="text-decoration: none;">
-                                        <div class="box custom-box" 
-                                            style="cursor: pointer; border-radius: 8px; border: 1px dashed #1a73e8; padding: 12px 15px; display: flex; align-items: center; background: #f8f9fa; transition: background 0.2s; margin-bottom: 0;"
-                                            onmouseover="this.style.backgroundColor='#e8f0fe'" onmouseout="this.style.backgroundColor='#f8f9fa'">
-                                            <i class="fa fa-plus" style="font-size: 20px; color: #1a73e8; margin-right: 15px;"></i>
-                                            <span style="font-weight: 600; color: #1a73e8; font-size: 14px;">Tambah Folder</span>
-                                        </div>
-                                    </a>
-                                </div>
-                                @endcan
                             </div>
-                                    </a>
-                            </div>
+
                             <div id="level3-files" style="display: none;">
                                 <div style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
                                     <button type="button" class="btn btn-default" onclick="closeFolder()" style="border-radius: 8px; padding: 6px 15px;">
-                                        <i class="fa fa-arrow-left"></i> Kembali ke Daftar Tag
+                                        <i class="fa fa-arrow-left"></i> Kembali ke Kategori
                                     </button>
                                     @if(auth()->user()->is_super_admin || auth()->user()->jabatan == 'Operator')
-                                    <a href="{{ url('admin/files-upload/'.$document->id) }}" class="btn btn-primary" style="border-radius: 8px; padding: 6px 15px;">
-                                        <i class="fa fa-cloud-upload"></i> Upload File
+                                    <a href="{{ url('admin/files-upload/'.$document->id_arsip) }}" class="btn btn-primary" style="border-radius: 8px; padding: 6px 15px;">
+                                        <i class="fa fa-cloud-upload"></i> Upload File ke Kategori Ini
                                     </a>
                                     @endif
                                 </div>
-                                <h4 id="nama-folder-aktif" style="margin-bottom: 20px; font-weight: bold; color: #3c4043;">📂 Isi Arsip: </h4>
+                                <h4 id="nama-folder-aktif" style="margin-bottom: 20px; font-weight: bold; color: #3c4043; border-bottom: 2px solid #3c8dbc; padding-bottom: 10px;">📂 Isi Arsip: </h4>
                                 
                                 <div class="row">
-                                @foreach ($document->files->sortBy('file_type_id') as $file)
-                                    <div class="col-xs-6 col-md-6 col-lg-4 file-item" data-folder="{{ $file->fileType->name }}">
-                                        <div class="box custom-box">
-                                            <div class="box-body">
-                                                @if (checkIsFileIsImage($file->file))
-                                                    <span class="img-d-select">
-                                                    <input type="checkbox" value="{{$file->file}}" name="topdf_check[]" class="iCheck-helper"/>
-                                                </span>
-                                                @endif
-                                                <img onclick="showFileModal({{json_encode($file)}})"
-                                                     style="cursor:pointer;"
-                                                     src="{{buildPreviewUrl($file->file)}}"
-                                                     alt="">
-                                            </div>
-                                            <div class="box-header">
-                                                <div class="user-block">
-                                                    <span class="label label-default">{{$file->fileType->name}}</span>
-                                                    <span class="username" style="cursor:pointer;"
-                                                          onclick="showFileModal({{json_encode($file)}})">{{$file->name}}</span>
-                                                    <small class="description text-gray"><b
-                                                            title="{{formatDateTime($file->created_at)}}"
-                                                            data-toggle="tooltip">{{\Carbon\Carbon::parse($file->created_at)->diffForHumans()}}</b>
-                                                        by <b>{{$file->createdBy->name}}</b></small>
+                                    @forelse ($document->files->sortBy('file_type_id') as $file)
+                                        <div class="col-xs-6 col-md-4 col-lg-4 file-item" data-folder="{{ $file->fileType->nama_kategori ?? 'Uncategorized' }}">
+                                            <div class="box custom-box" style="margin-bottom: 20px; border: 1px solid #ddd; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                                
+                                                <div class="box-body text-center" style="padding: 10px; background: #3c8dbc;">
+                                                    <img onclick="showFileModal({{json_encode($file)}})"
+                                                        style="cursor:pointer; max-width: 100%; height: 150px; object-fit: cover;"
+                                                        src="{{buildPreviewUrl($file->file)}}"
+                                                        alt="">
                                                 </div>
-                                                <div class="pull-right box-tools">
-                                                    <button type="button"
-                                                            class="btn btn-default btn-flat dropdown-toggle"
-                                                            data-toggle="dropdown" aria-expanded="false"
-                                                            style="    background: transparent;border: none;">
-                                                        <i class="fa fa-ellipsis-v" style="color: #fff;"></i>
-                                                        <span class="sr-only">Toggle Dropdown</span>
-                                                    </button>
-                                                    <ul class="dropdown-menu" role="menu">
-                                                        <li><a href="javascript:void(0);"
-                                                               onclick="showFileModal({{json_encode($file)}})">Show
-                                                                Detail</a>
-                                                        </li>
-                                                        <li>
-                                                            <a href="{{route('files.showfile',['dir'=>'original','file'=>$file->file])}}?force=true"
-                                                               download>Download
-                                                                original</a>
-                                                        </li>
-                                                         <li>
-                                                            <a href="javascript:void(0);" onclick="editFileModal({{ json_encode($file) }})">
-                                                                <i class="fa fa-pencil" style="margin-right: 5px;"></i> Edit Detail
-                                                            </a>
-                                                        </li>
-                                                        @if (checkIsFileIsImage($file->file))
-                                                            @foreach (explode(",",config('settings.image_files_resize')) as $varient)
-                                                                <li>
-                                                                    <a href="{{route('files.showfile',['dir'=>$varient,'file'=>$file->file])}}?force=true"
-                                                                       download>Download {{$varient}}w</a></li>
-                                                            @endforeach
-                                                            <li>
-                                                                <a href="javascript:void(0)"
-                                                                   onclick="javascript:ImageEditor.open('{{route('files.showfile',['dir'=>'original','file'=>$file->file])}}')">
-                                                                    Edit Image
-                                                                </a>
-                                                            </li>
-                                                        @endif
-                                                        <li>
-                                                            {!! Form::open(['route' => ['documents.files.destroy', $file->id], 'method' => 'delete', 'style'=>'display:inline;']) !!}
-                                                            <button class="btn btn-link"
-                                                                    onclick="conformDel(this,event)" type="submit">
-                                                                Delete
+
+                                                <div class="box-header" style="background: #fff; color: #333; padding: 15px; position: relative;">
+                                                    <div class="user-block" style="width: 85%; display: inline-block;">
+                                                        <span class="username" style="cursor:pointer; color: #3c8dbc; display: block; font-size: 16px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                                                            onclick="showFileModal({{json_encode($file)}})">{{$file->name}}</span>
+                                                        <small class="description text-gray" style="display: block; font-size: 12px; margin-top: 5px;">Diupload {{\Carbon\Carbon::parse($file->created_at)->diffForHumans()}}</small>
+                                                    </div>
+
+                                                    @if(auth()->user()->is_super_admin || auth()->user()->jabatan == 'Operator')
+                                                    <div class="box-tools" style="position: absolute; top: 15px; right: 10px;">
+                                                        <div class="dropdown">
+                                                            <button class="btn btn-box-tool dropdown-toggle" type="button" data-toggle="dropdown" style="padding: 5px; background: transparent; border: none;">
+                                                                <i class="fa fa-ellipsis-v" style="font-size: 18px; color: #888;"></i>
                                                             </button>
-                                                            {!! Form::close() !!}
-                                                        </li>
-                                                    </ul>
-                                                </div>
+                                                            <ul class="dropdown-menu pull-right" role="menu" style="min-width: 120px; border-radius: 5px; border: 1px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                                                                <li>
+                                                                    <form action="{{ url('admin/files-upload', $file->id) }}" method="POST" class="form-hapus-file">
+                                                                        {{ csrf_field() }}
+                                                                        {{ method_field('DELETE') }}
+                                                                        <button type="button" onclick="hapusFileMewah(this)" style="background: none; border: none; color: #dd4b39; padding: 10px 15px; width: 100%; text-align: left;">
+                                                                            <i class="fa fa-trash"></i> Hapus File
+                                                                        </button>
+                                                                    </form>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                    @endif
+                                                    </div>
                                             </div>
                                         </div>
-                                    </div>
-                                @endforeach
+                                    @empty
+                                        <div class="col-md-12 text-center" style="padding: 40px 0; color: #999;">
+                                            <i class="fa fa-file-pdf-o" style="font-size: 40px; margin-bottom: 10px;"></i>
+                                            <p>Belum ada file di kategori ini.</p>
+                                        </div>
+                                    @endforelse
                                 </div> 
-                                <script>
-                                    function openFolder(tagName) {
-                                        // 1. Sembunyikan folder, munculkan papan file
-                                        document.getElementById('level2-folders').style.display = 'none';
-                                        document.getElementById('level3-files').style.display = 'block';
-                                        document.getElementById('nama-folder-aktif').innerText = '📂 Isi Arsip: ' + tagName;
-
-                                        // 2. Mesin Sortir: Cek KTP masing-masing file
-                                        let files = document.querySelectorAll('.file-item');
-                                        files.forEach(function(file) {
-                                            let fileKTP = file.getAttribute('data-folder');
-                                            
-                                            // Kalau KTP file SAMA DENGAN nama folder yang diklik, tampilkan!
-                                            if (fileKTP && fileKTP.toLowerCase() === tagName.toLowerCase()) {
-                                                file.style.display = 'block';
-                                            } else {
-                                                file.style.display = 'none'; // Kalau beda, sembunyikan!
-                                            }
-                                        });
-                                    }
-
-                                    function closeFolder() {
-                                        // Kembali ke halaman folder
-                                        document.getElementById('level3-files').style.display = 'none';
-                                        document.getElementById('level2-folders').style.display = 'block';
-                                    }
-                                </script>
-                            </>
-                        </div>
-                        @can('verify', $document)
-                            <div class="tab-pane" id="tab_verification">
-                                @if ($document->status!=config('constants.STATUS.APPROVED'))
-                                    {!! Form::open(['route' => ['documents.verify', $document->id], 'method' => 'post']) !!}
-                                    <div class="form-group text-center">
-                                    <textarea class="form-control" name="vcomment" id="vcomment" rows="4"
-                                              placeholder="Enter Comment to verify with comment(optional)"></textarea>
-                                    </div>
-                                    <div class="form-group text-center">
-                                        <button class="btn btn-success" type="submit" name="action" value="approve"><i
-                                                class="fa fa-check"></i> Approve
-                                        </button>
-                                        <button class="btn btn-danger" type="submit" name="action" value="reject"><i
-                                                class="fa fa-close"></i> Reject
-                                        </button>
-                                    </div>
-                                    {!! Form::close() !!}
-                                @else
-                                    <div class="form-group">
-                                        <span class="label label-success">Verified</span>
-                                    </div>
-                                    <div class="form-group">
-                                        Verifier: <b>{{$document->verifiedBy->name}}</b>
-                                    </div>
-                                    <div class="form-gorup">
-                                        Verified At: <b>{{formatDateTime($document->verified_at)}}</b>
-                                        ({{\Carbon\Carbon::parse($document->verified_at)->diffForHumans()}})
-                                    </div>
-                                @endif
                             </div>
-                        @endcan
+
+                            <script>
+                                function openFolder(tagName) {
+                                    // 1. Sembunyikan folder, munculkan papan file
+                                    document.getElementById('level2-folders').style.display = 'none';
+                                    document.getElementById('level3-files').style.display = 'block';
+                                    document.getElementById('nama-folder-aktif').innerText = '📂 Isi Kategori: ' + tagName;
+
+                                    // 2. Mesin Sortir: Cek KTP masing-masing file
+                                    let files = document.querySelectorAll('.file-item');
+                                    let adaFile = false;
+                                    files.forEach(function(file) {
+                                        let fileKTP = file.getAttribute('data-folder');
+                                        if (fileKTP && fileKTP.toLowerCase() === tagName.toLowerCase()) {
+                                            file.style.display = 'block';
+                                            adaFile = true;
+                                        } else {
+                                            file.style.display = 'none'; 
+                                        }
+                                    });
+                                }
+
+                                function closeFolder() {
+                                    document.getElementById('level3-files').style.display = 'none';
+                                    document.getElementById('level2-folders').style.display = 'flex';
+                                }
+                            </script>
+                        </div>
+                        
                         <div class="tab-pane" id="tab_activity">
                             <ul class="timeline">
                                 <li class="time-label">
                                     <span class="bg-red">{{formatDate($document->updated_at,'d M Y')}}</span>
                                 </li>
-                                @foreach ($document->activities as $activity)
+                                @if($document->activities)
+                                    @foreach ($document->activities as $activity)
+                                        <li>
+                                            <i class="fa fa-user bg-aqua" title="{{$activity->createdBy->name ?? 'System'}}"></i>
+                                            <div class="timeline-item">
+                                                <span class="time"><i class="fa fa-clock-o"></i> {{\Carbon\Carbon::parse($activity->created_at)->diffForHumans()}}</span>
+                                                <h4 class="timeline-header no-border">{!! $activity->activity !!}</h4>
+                                            </div>
+                                        </li>
+                                    @endforeach
+                                @else
                                     <li>
-                                        <i class="fa fa-user bg-aqua" data-toggle="tooltip"
-                                           title="{{$activity->createdBy->name}}"></i>
-
+                                        <i class="fa fa-info bg-blue"></i>
                                         <div class="timeline-item">
-                                            <span class="time" data-toggle="tooltip"
-                                                  title="{{formatDateTime($activity->created_at)}}"><i
-                                                    class="fa fa-clock-o"></i> {{\Carbon\Carbon::parse($activity->created_at)->diffForHumans()}}</span>
-
-                                            <h4 class="timeline-header no-border">{!! $activity->activity !!}</h4>
+                                            <h4 class="timeline-header no-border" style="padding: 10px;">Belum ada riwayat aktivitas.</h4>
                                         </div>
                                     </li>
-                                @endforeach
-                                <li>
-                                    <i class="fa fa-clock-o bg-gray"></i>
-                                </li>
+                                @endif
+                                <li><i class="fa fa-clock-o bg-gray"></i></li>
                             </ul>
                         </div>
-                        @can('user manage permission')
-                            <div class="tab-pane" id="tab_permissions">
-                                <div>
-                                    <div class="modal fade" id="modal-permission">
-                                        {{Form::open(['route' => ['documents.store-permission',request('document')]])}}
-                                        <div class="modal-dialog">
-                                            <div class="modal-content">
-                                                <div class="modal-header">
-                                                    <button type="button" class="close" data-dismiss="modal"
-                                                            aria-label="Close">
-                                                        <span aria-hidden="true">&times;</span></button>
-                                                    <h4 class="modal-title">Give Permission</h4>
-                                                </div>
-                                                <div class="modal-body">
-                                                    <div class="row">
-                                                        <div class="col-sm-12">
-                                                            <select class="form-control" name="user_id" required>
-                                                                <option value="">- Select User -</option>
-                                                                @foreach($users as $usr)
-                                                                    <option value="{{$usr->id}}">{{$usr->name}}({{$usr->username}})</option>
-                                                                @endforeach
-                                                            </select>
-                                                        </div>
-                                                        @foreach (config('constants.DOCUMENT_LEVEL_PERMISSIONS')  as $perm)
-                                                            <div class="col-sm-6" style="margin-top: 20px;">
-                                                                <label>
-                                                                    <input name="document_permissions[{{$perm}}]"
-                                                                           type="checkbox" class="iCheck-helper"
-                                                                           value="1"> {{ucfirst($perm)}}
-                                                                    this {{config('settings.document_label_singular')}}
-                                                                </label>
-                                                            </div>
-                                                        @endforeach
-                                                    </div>
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-default pull-left"
-                                                            data-dismiss="modal">Close
-                                                    </button>
-                                                    <button type="submit" class="btn btn-primary">Save Permission</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {{Form::close()}}
-                                    </div>
-                                    <table class="table">
-                                        <thead>
-                                        <tr>
-                                            <th colspan="3" style="font-size: 1.8rem;">
-                                                Direct Permissions
-                                                <button type="button" class="btn btn-primary btn-xs pull-right" data-toggle="modal"
-                                                        data-target="#modal-permission">
-                                                    <i class="fa fa-plus"></i> New Permission
-                                                </button>
-                                            </th>
-                                        </tr>
-                                        <tr>
-                                            <th>User</th>
-                                            <th>Permissions</th>
-                                            <th></th>
-                                        </tr>
-                                        </thead>
-                                        <tbody>
-                                        @if (count($thisDocPermissionUsers)==0)
-                                            <tr>
-                                                <td colspan="2">No record found</td>
-                                            </tr>
-                                        @endif
-                                        @foreach($thisDocPermissionUsers as $perm)
-                                            <tr>
-                                                <td>{{$perm['user']->name}}</td>
-                                                <td>
-                                                    @foreach($perm['permissions'] as $item)
-                                                        <label class="label label-default">{{$item}}</label>
-                                                    @endforeach
-                                                </td>
-                                                <td>
-                                                    {{Form::open(['route' => ['documents.delete-permission',request('document'),$perm['user']->id]])}}
-                                                    <button type="submit" class="btn btn-danger btn-xs"
-                                                            onclick="return conformDel(this,event)">
-                                                        <i class="fa fa-trash"></i>
-                                                    </button>
-                                                    {{Form::close()}}
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                        </tbody>
-                                    </table>
-                                    <table class="table">
-                                        <thead>
-                                        <tr>
-                                            <th colspan="3" style="font-size: 1.8rem;">Permissions inherited
-                                                by {{config('settings.tags_label_plural')}}</th>
-                                        </tr>
-                                        <tr>
-                                            <th>{{ucfirst(config('settings.tags_label_singular'))}}</th>
-                                            <th>User</th>
-                                            <th>Permissions</th>
-                                        </tr>
-                                        </thead>
-                                        <tbody>
-                                        @if (count($tagWisePermList)==0)
-                                            <tr>
-                                                <td colspan="3">No record found</td>
-                                            </tr>
-                                        @endif
-                                        @foreach ($tagWisePermList as $perm)
-                                            <tr>
-                                                <td>{{$perm['tag']->name}}</td>
-                                                <td>{{$perm['user']->name}}</td>
-                                                <td>
-                                                    @foreach ($perm['permissions'] as $p)
-                                                        <label class="label label-default">{{$p}}</label>
-                                                    @endforeach
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                        </tbody>
-                                    </table>
-                                    <table class="table">
-                                        <thead>
-                                        <tr>
-                                            <th colspan="3" style="font-size: 1.8rem;">Global Permission of {{config('settings.document_label_plural')}}</th>
-                                        </tr>
-                                        <tr>
-                                            <th>User</th>
-                                            <th>Permissions</th>
-                                        </tr>
-                                        </thead>
-                                        <tbody>
-                                        @if (count($globalPermissionUsers)==0)
-                                            <tr>
-                                                <td colspan="2">No record found</td>
-                                            </tr>
-                                        @endif
-                                        @foreach ($globalPermissionUsers as $perm)
-                                            <tr>
-                                                <td>{{$perm['user']->name}}</td>
-                                                <td>
-                                                    @foreach ($perm['permissions'] as $p)
-                                                        <label class="label label-default">{{$p}}</label>
-                                                    @endforeach
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        @endcan
                     </div>
                 </div>
             </div>
-
         </div>
     </div>
-    <div id="sticky_footer">
+    <div id="sticky_footer" style="display:none;">
         <form id="frm_image2pdf" action="{{route('files.downloadPdf')}}" method="post" style="display: inline">
             @csrf
             <input type="hidden" name="images">
             <input type="hidden" name="images_varient">
             <div class="dropup">
-                <button class="btn btn-success dropdown-toggle" type="button" data-toggle="dropdown"><i class="fa fa-file-pdf-o"></i>  Convert PDF
-                    <span class="caret"></span></button>
+                <button class="btn btn-success dropdown-toggle" type="button" data-toggle="dropdown"><i class="fa fa-file-pdf-o"></i> Convert PDF <span class="caret"></span></button>
                 <ul class="dropdown-menu">
                     <li><a href="javascript:void(0);" onclick="submitPdfForm('original')">Original</a></li>
                     @foreach (explode(',',config('settings.image_files_resize')) as $varient)
@@ -689,46 +431,65 @@
             </div>
         </form>
     </div>
+    
     <div class="modal fade" id="modalEditFile" tabindex="-1" role="dialog" aria-labelledby="modalEditFileLabel">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                <h4 class="modal-title" id="modalEditFileLabel">Edit Detail File</h4>
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="modalEditFileLabel">Edit Detail File</h4>
+                </div>
+                <form id="formEditFile" method="POST" action="">
+                    @csrf
+                    @method('PUT')
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>Nama File</label>
+                            <input type="text" class="form-control" name="name" id="edit_file_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Status Surat</label>
+                            <select name="status" id="edit_file_status" class="form-control" onchange="aturMasaGunaEdit()">
+                                <option value="Active">Active</option>
+                                <option value="Nonactive">Nonactive</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Masa Guna</label>
+                            <input type="date" class="form-control" name="masa_guna" id="edit_file_masa_guna">
+                        </div>
+                        <div class="form-group">
+                            <label>Lokasi Hard Copy</label>
+                            <input type="text" class="form-control" name="lokasi_hard_copy" id="edit_file_lokasi_hard_copy" placeholder="Contoh: Lemari A, Rak 2">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary">Update File</button>
+                    </div>
+                </form>
             </div>
-            <form id="formEditFile" method="POST" action="">
-                @csrf
-                @method('PUT')
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label>Nama File</label>
-                        <input type="text" class="form-control" name="name" id="edit_file_name" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Status Surat</label>
-                        <select name="status" id="edit_file_status" class="form-control" onchange="aturMasaGunaEdit()">
-                            <option value="Active">Active</option>
-                            <option value="Nonactive">Nonactive</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Masa Guna</label>
-                        <input type="date" class="form-control" name="masa_guna" id="edit_file_masa_guna">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Lokasi Hard Copy</label>
-                        <input type="text" class="form-control" name="lokasi_hard_copy" id="edit_file_lokasi_hard_copy" placeholder="Contoh: Lemari A, Rak 2">
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary">Update File</button>
-                </div>
-            </form>
         </div>
     </div>
-</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        function hapusFileMewah(button) {
+            Swal.fire({
+                title: 'Konfirmasi Hapus File!',
+                text: "Apakah Anda yakin ingin menghapus arsip ini dari sistem?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33', 
+                cancelButtonColor: '#3085d6', 
+                confirmButtonText: '<i class="fa fa-trash"></i> Ya, Hapus',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    button.closest('form').submit();
+                }
+            })
+        }
+    </script>
+
 @endsection

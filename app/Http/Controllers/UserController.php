@@ -8,7 +8,6 @@ use App\Http\Requests\CreateUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Repositories\PermissionRepository;
 use App\Repositories\UserRepository;
-use App\Tag;
 use App\User;
 use Flash;
 use Response;
@@ -17,89 +16,40 @@ use Illuminate\Http\Request;
 
 class UserController extends AppBaseController
 {
-    /** @var  UserRepository */
     private $userRepository;
-
-    /** @var PermissionRepository */
     private $permissionRepository;
 
-    public function __construct(UserRepository $userRepo,
-                                PermissionRepository $permissionRepository)
+    public function __construct(UserRepository $userRepo, PermissionRepository $permissionRepository)
     {
         $this->userRepository = $userRepo;
         $this->permissionRepository = $permissionRepository;
     }
 
-    /**
-     * Display a listing of the User.
-     *
-     * @param UserDataTable $userDataTable
-     * @return Response
-     */
     public function index(UserDataTable $userDataTable)
     {
         $this->authorize('viewAny', User::class);
         return $userDataTable->render('users.index');
     }
 
-    /**
-     * Show the form for creating a new User.
-     *
-     * @return Response
-     * @throws \Illuminate\Auth\Access\AuthorizationException
-     */
     public function create()
     {
-        $tags = Tag::pluck('name', 'id');
+        $tags = []; // Bypass agar view tidak error nyari tabel tags
         $this->authorize('create', User::class);
         return view('users.create', compact('tags'));
     }
 
-    /**
-     * Store a newly created User in storage.
-     *
-     * @param CreateUserRequest $request
-     *
-     * @return Response
-     */
     public function store(CreateUserRequest $request)
     {
         $this->authorize('create', User::class);
         $input = $request->all();
         $input['password'] = bcrypt($input['password']);
 
-        /** @var User $user */
         $user = $this->userRepository->create($input);
 
-        //give selected permission to user
-        if (\Auth::user()->can('user manage permission')) {
-            $this->permissionRepository->setPermissionsForUser($user, $this->mapInputToPermissions($input));
-        }
-        //end permission
-        Flash::success('User saved successfully.');
-
+        Flash::success('Pegawai berhasil didaftarkan.');
         return redirect(route('users.index'));
     }
 
-    private function mapInputToPermissions($input)
-    {
-        $permissions = $input['global_permissions'] ?? [];
-        foreach ($input['tag_permissions'] ?? [] as $tag_permission) {
-            foreach (config('constants.TAG_LEVEL_PERMISSIONS') as $perm_key => $perm) {
-                if (isset($tag_permission[$perm]))
-                    $permissions[] = $perm_key . $tag_permission['tag_id'];
-            }
-        }
-        return $permissions;
-    }
-
-    /**
-     * Display the specified User.
-     *
-     * @param int $id
-     *
-     * @return Response
-     */
     public function show($id)
     {
         abort_if($id == 1, 404);
@@ -107,65 +57,41 @@ class UserController extends AppBaseController
         $this->authorize('view', $user);
 
         if (empty($user)) {
-            Flash::error('User not found');
-
+            Flash::error('Pegawai tidak ditemukan');
             return redirect(route('users.index'));
         }
 
-        if (auth()->user()->can('user manage permission')) {
-            $tmpTagIds = groupTagsPermissions($user->getAllPermissions());
-            $tags = Tag::whereIn('id', array_column($tmpTagIds, 'tag_id'))->get();
-
-            $tmpDocIds = groupDocumentsPermissions($user->getAllPermissions());
-
-            $documents = Document::whereIn('id', array_column($tmpDocIds, 'doc_id'))->get();
-
-            $globalPermissions = $this->permissionRepository->getGlobalPermissionsModelWiseForUser($user);
-        }
+        $tags = []; 
+        $documents = [];
+        $globalPermissions = [];
 
         return view('users.show', compact('user', 'tags', 'documents','globalPermissions'));
     }
 
-    /**
-     * Show the form for editing the specified User.
-     *
-     * @param int $id
-     *
-     * @return Response
-     */
     public function edit($id)
     {
         abort_if($id == 1, 404);
         $user = $this->userRepository->find($id);
         $this->authorize('update', $user);
-        $tags = Tag::pluck('name', 'id');
+        $tags = []; // Bypass
         $user->password = "";
 
         if (empty($user)) {
-            Flash::error('User not found');
-
+            Flash::error('Pegawai tidak ditemukan');
             return redirect(route('users.index'));
         }
 
         return view('users.edit')->with('user', $user)->with('tags', $tags);
     }
 
-    /**
-     * Update the specified User in storage.
-     *
-     * @param int $id
-     * @param UpdateUserRequest $request
-     *
-     * @return Response
-     */
     public function update($id, UpdateUserRequest $request)
     {
         abort_if($id == 1, 404);
         $user = $this->userRepository->find($id);
         $this->authorize('update', $user);
+        
         if (empty($user)) {
-            Flash::error('User not found');
-
+            Flash::error('Pegawai tidak ditemukan');
             return redirect(route('users.index'));
         }
 
@@ -176,45 +102,24 @@ class UserController extends AppBaseController
             $data['password'] = bcrypt($data['password']);
         }
 
-        /** @var User $user */
         $user = $this->userRepository->update($data, $id);
-        //give selected permission to users
-        if (\Auth::user()->can('user manage permission')) {
-            $permissions = $this->mapInputToPermissions($data);
-            $docsPermissions = [];//also allocate doc level permissions.
-            foreach (groupDocumentsPermissions($user->getAllPermissions()) as $perm) {
-                foreach ($perm['permissions'] as $perm_val) {
-                    $docsPermissions[] = $perm_val." document ".$perm['doc_id'];
-                }
-            }
-            $user->syncPermissions(array_merge($permissions,$docsPermissions));
-        }
-        //end permission
-        Flash::success('User updated successfully.');
+
+        Flash::success('Data pegawai berhasil diupdate.');
         return redirect(route('users.index'));
     }
 
-    /**
-     * Remove the specified User from storage.
-     *
-     * @param int $id
-     *
-     * @return Response
-     */
     public function destroy($id)
     {
         abort_if($id == 1, 404);
-        /** @var User $user */
         $user = $this->userRepository->find($id);
         $this->authorize('delete', $user);
-        //revoke all permission
-        $user->syncPermissions();
+        
         if (empty($user)) {
-            Flash::error('User not found');
+            Flash::error('Pegawai tidak ditemukan');
             return redirect(route('users.index'));
         }
         $this->userRepository->delete($id);
-        Flash::success('User deleted successfully.');
+        Flash::success('Pegawai berhasil dihapus.');
         return redirect(route('users.index'));
     }
 
@@ -225,9 +130,7 @@ class UserController extends AppBaseController
             config('constants.STATUS.ACTIVE') : config('constants.STATUS.BLOCK');
 
         $user->save();
-
-        Flash::success('User ' . strtolower($user->status) . " successfully.");
-
+        Flash::success('Status berhasil diubah.');
         return redirect()->route('users.index');
     }
 
@@ -238,30 +141,26 @@ class UserController extends AppBaseController
 
     public function changePasswordUpdate(Request $request)
     {
-    // 1. Validasi inputan form
-    $request->validate([
-        'current_password' => 'required',
-        'password' => 'required|string|min:6|confirmed',
-    ], [
-        'password.confirmed' => 'Konfirmasi password baru tidak cocok.',
-        'password.min' => 'Password baru minimal harus 6 karakter.'
-    ]);
+        $request->validate([
+            'current_password' => 'required',
+            'password' => 'required|string|min:6|confirmed',
+        ], [
+            'password.confirmed' => 'Konfirmasi password baru tidak cocok.',
+            'password.min' => 'Password baru minimal harus 6 karakter.'
+        ]);
 
-    // 2. Cek apakah password lama yang dimasukkan cocok dengan di database
-    if (!(Hash::check($request->get('current_password'), auth()->user()->password))) {
-        return redirect()->back()->with("error", "Password lama yang kamu masukkan salah. Silakan coba lagi.");
+        if (!(Hash::check($request->get('current_password'), auth()->user()->password))) {
+            return redirect()->back()->with("error", "Password lama yang kamu masukkan salah. Silakan coba lagi.");
+        }
+
+        if (strcmp($request->get('current_password'), $request->get('password')) == 0) {
+            return redirect()->back()->with("error", "Password baru tidak boleh sama dengan password lama.");
+        }
+
+        $user = auth()->user();
+        $user->password = Hash::make($request->get('password'));
+        $user->save();
+
+        return redirect()->back()->with("success", "Password kamu berhasil diperbarui!");
     }
-
-    // 3. Pastikan password baru beda dengan password lama
-    if (strcmp($request->get('current_password'), $request->get('password')) == 0) {
-        return redirect()->back()->with("error", "Password baru tidak boleh sama dengan password lama.");
-    }
-
-    // 4. Eksekusi simpan password baru ke database
-    $user = auth()->user();
-    $user->password = Hash::make($request->get('password'));
-    $user->save();
-
-    return redirect()->back()->with("success", "Password kamu berhasil diperbarui!");
-}
 }

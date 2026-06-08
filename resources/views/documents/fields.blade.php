@@ -1,46 +1,32 @@
-<div class="form-group col-sm-6">
+<div class="form-group col-sm-12">
     <label>Nama Folder:</label>
-    {!! Form::text('name', null, ['class' => 'form-control']) !!}
+    {!! Form::text('nama_arsip', null, ['class' => 'form-control', 'required' => 'required', 'placeholder' => 'Contoh: Folder SMP, Folder Surat Keputusan, Yona Cantik']) !!}
 </div>
 
-<div class="form-group col-sm-6">
-    <label for="tags">Pilih / Tambah Folder (Bisa pilih lebih dari satu):</label>
-    {!! Form::select('tags[]', collect($tags)->pluck('name', 'id'), isset($document) ? $document->tags->pluck('id') : null, ['class' => 'form-control select2', 'multiple' => 'multiple', 'data-placeholder' => '-- Pilih Kategori Folder --']) !!}
+<div class="form-group col-sm-12">
+    <label>Pilih Kategori Folder (Bisa pilih lebih dari satu):</label>
+    {!! Form::select('id_kategori[]', $kategori_arsip ?? [], $selected_tags ?? null, ['class' => 'form-control select2', 'multiple' => 'multiple', 'required' => 'required']) !!}
 </div>
 
-<div class="clearfix"></div>
+<div class="form-group col-sm-12">
+    <label>Deskripsi / Keterangan Folder:</label>
+    {!! Form::textarea('deskripsi', null, ['class' => 'form-control', 'rows' => 3, 'placeholder' => 'Tuliskan keterangan singkat folder ini (opsional)...']) !!}
+</div>
 
 @if(auth()->user()->is_super_admin)
     <div class="form-group col-sm-6">
-        <label>Tugaskan Arsip Ini Kepada Pegawai:</label>
-        {!! Form::select('pemilik_id', $pegawais ?? [], isset($document) ? $document->created_by : null, ['class' => 'form-control', 'placeholder' => '-- Pilih Pegawai / Kosongkan --']) !!}
+        <label>Tugaskan ke Pegawai (Hak Akses Personal):</label>
+        {!! Form::select('id_user', $pegawais ?? [], null, ['class' => 'form-control', 'placeholder' => '-- Pilih Pegawai / Kosongkan --']) !!}
     </div>
 
     <div class="form-group col-sm-6">
-        <label>Tugaskan Arsip Ini Kepada Divisi:</label>
-        {!! Form::select('divisi', [
-            'Paud' => 'PAUD', 
-            'TK' => 'TK', 
-            'SD' => 'SD', 
-            'SMP' => 'SMP', 
-            'SMA' => 'SMA'
-        ], null, ['class' => 'form-control', 'placeholder' => '-- Pilih Divisi / Kosongkan --']) !!}
+        <label>Tugaskan ke Divisi (Hak Akses Grup):</label>
+        {!! Form::select('divisi', ['Semua' => 'Semua Divisi (Publik)', 'TK' => 'TK', 'SD' => 'SD', 'SMP' => 'SMP', 'SMA' => 'SMA'], null, ['class' => 'form-control', 'placeholder' => '-- Pilih Divisi / Kosongkan --']) !!}
     </div>
-    
     <div class="clearfix"></div>
 @endif
 
-{{--additional Attributes--}}
-@foreach ($customFields as $customField)
-    <div class="form-group col-sm-6 {{ $errors->has("custom_fields.$customField->name") ? 'has-error' :'' }}">
-        {!! Form::label("custom_fields[$customField->name]", Str::title(str_replace('_',' ',$customField->name)).":") !!}
-        {!! Form::text("custom_fields[$customField->name]", null, ['class' => 'form-control typeahead','data-source'=>json_encode($customField->suggestions),'autocomplete'=>is_array($customField->suggestions)?'off':'on']) !!}
-        {!! $errors->first("custom_fields.$customField->name",'<span class="help-block">:message</span>') !!}
-    </div>
-@endforeach
-{{--end additional attributes--}}
-
-<div class="form-group col-sm-12">
-    {!! Form::submit('Save', ['class' => 'btn btn-primary']) !!}
-    <a href="{!! route('documents.index') !!}" class="btn btn-default">Cancel</a>
+<div class="form-group col-sm-12" style="margin-top: 20px;">
+    {!! Form::submit('Simpan Folder Baru', ['class' => 'btn btn-primary']) !!}
+    <a href="{!! route('documents.index') !!}" class="btn btn-default">Batal</a>
 </div>

@@ -10,7 +10,7 @@
        <div class="box box-primary">
            <div class="box-body">
                <div class="row">
-                   {!! Form::model($document, ['route' => ['documents.update', $document->id], 'method' => 'patch']) !!}
+                   {!! Form::model($document, ['route' => ['documents.update', $document->id_arsip], 'method' => 'patch']) !!}
 
                         @include('documents.fields')
 

@@ -26,13 +26,8 @@ class UpdateTagRequest extends FormRequest
      */
     public function rules()
     {
-        $rules = Tag::$rules;
-        $rules['name'] .= ",$this->tag";
-        $customFields = CustomField::where('model_type','tags')->get();
-        foreach ($customFields as $customField) {
-            $rules["custom_fields.$customField->name"] = $customField->validation ?? 'nullable';
-        }
-
+        $rules = \App\Tag::$rules;
+        
         return $rules;
     }
 }

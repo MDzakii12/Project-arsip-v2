@@ -29,28 +29,83 @@ class HomeController extends AppBaseController
 
     public function index(Request $request)
     {
-        // 1. STATISTIK UMUM
-        $documentCounts = Document::count();
-        $filesCounts = File::count();
-        $pegawaiAktif = User::where('id', '!=', 1)->where('status', 'Active')->count();
-        $arsipHariIni = Document::whereDate('created_at', Carbon::today())->count();
+        $user = auth()->user();
 
-        // 2. DATA UNTUK GRAFIK (Jumlah Arsip per Kategori)
-        $tags = Tag::withCount('documents')->get();
-        $chartLabels = $tags->pluck('name')->toJson();
-        $chartData = $tags->pluck('documents_count')->toJson();
+        // --- PASANG KACAMATA KUDA DI SINI ---
+        // Bikin pondasi pencarian dokumen
+        $docQuery = \App\Document::query();
+        
+        // Kalau BUKAN Super Admin, filter anti-bocor total
+        if (!$user->is_super_admin) {
+            $docQuery->where(function($query) use ($user) {
+                // 1. Jalur Pribadi
+                $query->where('id_user', $user->id);
+                
+                // 2. Jalur Divisi (Cek HANYA JIKA user punya divisi yang valid & bukan NULL)
+                if ($user->divisi != null && $user->divisi != '') {
+                    $query->orWhere(function($q) use ($user) {
+                        $q->whereNotNull('divisi')->where('divisi', $user->divisi);
+                    });
+                }
 
-        // 3. LOG AKTIVITAS (Timeline)
-        $activities = Activity::with(['createdBy', 'document']);
+                // 3. Jalur Publik
+                $query->orWhere('divisi', 'Semua');
+            });
+        }
+
+        // --- MENGHITUNG METRIK UNTUK DASHBOARD ---
+        
+        // 1. Hitung Total Folder (Berdasarkan hak akses)
+        $total_documents = $docQuery->count();
+
+        // 2. Hitung Total File (Berdasarkan hak akses)
+        if ($user->is_super_admin) {
+            $total_files = \App\File::count(); 
+        } else {
+            // Tarik ID folder yang bisa diakses user ini
+            $documentIds = $docQuery->pluck('id_arsip');
+            // Hitung file yang HANYA ada di dalam folder tersebut
+            $total_files = \App\File::whereIn('id_arsip', $documentIds)->count();
+        }
+
+        $documents = $docQuery->orderBy('created_at', 'desc')->paginate(10);
+        $documentCounts = (clone $docQuery)->count();
+        $filesCounts = \App\File::count(); 
+        $pegawaiAktif = \App\User::count(); 
+        $arsipHariIni = (clone $docQuery)->whereDate('tanggal_upload', \Carbon\Carbon::today())->count(); 
+
+        // 2. DATA UNTUK GRAFIK (Menampilkan Kategori Arsip yang Sebenarnya)
+        $kategoris = \App\Tag::all(); 
+        $labels = [];
+        $data = [];
+
+        foreach ($kategoris as $kategori) {
+            $labels[] = $kategori->nama_kategori; 
+            
+            // Hitung pakai kacamata kuda ($docQuery) dicocokin sama tabel arsip_kategori
+            $jumlahArsip = (clone $docQuery)->whereIn('id_arsip', function($q) use ($kategori) {
+                $q->select('id_arsip')
+                  ->from('arsip_kategori')
+                  ->where('id_kategori', $kategori->id_kategori);
+            })->count();
+                            
+            $data[] = $jumlahArsip; 
+        }
+
+        $chartLabels = json_encode($labels);
+        $chartData = json_encode($data);
+
+        // 3. LOG AKTIVITAS (Aman)
+        $activities = \App\Activity::with(['createdBy']);
         if($request->has('activity_range')){
             $dates = explode("to",$request->get('activity_range'));
             $activities->whereDate('created_at','>=',$dates[0]??'');
             $activities->whereDate('created_at','<=',$dates[1]??'');
         }
-        $activities = $activities->orderByDesc('id')->paginate(10); // Ambil 10 aktivitas terakhir
+       $activities = $activities->paginate(10); 
 
-        // 4. DAFTAR DOKUMEN (Untuk Quick Upload)
-        $documents = Document::orderByDesc('id')->get();
+        // 4. DAFTAR DOKUMEN (Terfilter & Diurutkan dari yang terbaru)
+        $documents = (clone $docQuery)->orderBy('created_at', 'desc')->take(5)->get(); 
 
         return view('home', compact(
             'documentCounts', 

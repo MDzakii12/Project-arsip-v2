@@ -30,4 +30,25 @@
 
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        function hapusCakep(id) {
+            Swal.fire({
+                title: 'Yakin mau dihapus?',
+                text: "Data yang udah dihapus nggak bisa balik lagi lho!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Ya, Hapus Aja!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    document.getElementById('form-hapus-' + id).submit();
+                }
+            })
+        }
+    </script>
+
 @endsection
