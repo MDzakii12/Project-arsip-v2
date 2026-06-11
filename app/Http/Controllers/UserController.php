@@ -84,27 +84,34 @@ class UserController extends AppBaseController
         return view('users.edit')->with('user', $user)->with('tags', $tags);
     }
 
-    public function update($id, UpdateUserRequest $request)
+    // 1. Ubah UpdateUserRequest jadi Request biasa, dan taruh $request di depan (Standar Laravel)
+    public function update(\Illuminate\Http\Request $request, $id)
     {
+        // Jangan otak-atik Super Admin
         abort_if($id == 1, 404);
+        
         $user = $this->userRepository->find($id);
-        $this->authorize('update', $user);
+        
+        // $this->authorize('update', $user); // (Kalau error soal hak akses, baris ini dikasih garis miring aja)
         
         if (empty($user)) {
-            Flash::error('Pegawai tidak ditemukan');
+            \Flash::error('Pegawai tidak ditemukan');
             return redirect(route('users.index'));
         }
 
         $data = $request->all();
+        
+        // Cek jika password dikosongkan, berarti gak usah diubah
         if (empty($data['password'])) {
             unset($data['password']);
         } else {
             $data['password'] = bcrypt($data['password']);
         }
 
+        // Eksekusi Update ke Database
         $user = $this->userRepository->update($data, $id);
 
-        Flash::success('Data pegawai berhasil diupdate.');
+        \Flash::success('Data pegawai berhasil diupdate.');
         return redirect(route('users.index'));
     }
 

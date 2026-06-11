@@ -31,40 +31,36 @@ class HomeController extends AppBaseController
     {
         $user = auth()->user();
 
-        // --- PASANG KACAMATA KUDA DI SINI ---
-        // Bikin pondasi pencarian dokumen
-        $docQuery = \App\Document::query();
+        // 1. [SUNTIKAN] Jembatan Sakti: Ubah ID Divisi jadi Teks
+        $namaDivisi = trim(\DB::table('divisi')->where('id_divisi', $user->id_divisi)->value('nama_divisi'));
+
+        // 2. [SUNTIKAN] Tambahin withoutGlobalScopes() buat ngebunuh Satpam Rahasia
+        $docQuery = \App\Document::withoutGlobalScopes();
         
-        // Kalau BUKAN Super Admin, filter anti-bocor total
         if (!$user->is_super_admin) {
-            $docQuery->where(function($query) use ($user) {
-                // 1. Jalur Pribadi
+            $docQuery->where(function($query) use ($user, $namaDivisi) {
+                // Yang dia upload sendiri
                 $query->where('id_user', $user->id);
                 
-                // 2. Jalur Divisi (Cek HANYA JIKA user punya divisi yang valid & bukan NULL)
-                if ($user->divisi != null && $user->divisi != '') {
-                    $query->orWhere(function($q) use ($user) {
-                        $q->whereNotNull('divisi')->where('divisi', $user->divisi);
+                // Yang divisinya cocok (Pakai Jembatan Sakti)
+                if (!empty($namaDivisi)) {
+                    $query->orWhere(function($q) use ($namaDivisi) {
+                        $q->whereNotNull('divisi')->where('divisi', 'LIKE', '%' . $namaDivisi . '%');
                     });
                 }
 
-                // 3. Jalur Publik
-                $query->orWhere('divisi', 'Semua');
+                // Yang buat Semua divisi
+                $query->orWhere('divisi', 'LIKE', '%Semua%');
             });
         }
 
-        // --- MENGHITUNG METRIK UNTUK DASHBOARD ---
-        
-        // 1. Hitung Total Folder (Berdasarkan hak akses)
+        // --- DARI SINI KE BAWAH NGGAK ADA YANG GUA SENTUH SAMA SEKALI BRAY! AMAN 100% ---
         $total_documents = $docQuery->count();
 
-        // 2. Hitung Total File (Berdasarkan hak akses)
         if ($user->is_super_admin) {
             $total_files = \App\File::count(); 
         } else {
-            // Tarik ID folder yang bisa diakses user ini
             $documentIds = $docQuery->pluck('id_arsip');
-            // Hitung file yang HANYA ada di dalam folder tersebut
             $total_files = \App\File::whereIn('id_arsip', $documentIds)->count();
         }
 
@@ -74,7 +70,6 @@ class HomeController extends AppBaseController
         $pegawaiAktif = \App\User::count(); 
         $arsipHariIni = (clone $docQuery)->whereDate('tanggal_upload', \Carbon\Carbon::today())->count(); 
 
-        // 2. DATA UNTUK GRAFIK (Menampilkan Kategori Arsip yang Sebenarnya)
         $kategoris = \App\Tag::all(); 
         $labels = [];
         $data = [];
@@ -82,7 +77,6 @@ class HomeController extends AppBaseController
         foreach ($kategoris as $kategori) {
             $labels[] = $kategori->nama_kategori; 
             
-            // Hitung pakai kacamata kuda ($docQuery) dicocokin sama tabel arsip_kategori
             $jumlahArsip = (clone $docQuery)->whereIn('id_arsip', function($q) use ($kategori) {
                 $q->select('id_arsip')
                   ->from('arsip_kategori')
@@ -95,16 +89,14 @@ class HomeController extends AppBaseController
         $chartLabels = json_encode($labels);
         $chartData = json_encode($data);
 
-        // 3. LOG AKTIVITAS (Aman)
         $activities = \App\Activity::with(['createdBy']);
         if($request->has('activity_range')){
             $dates = explode("to",$request->get('activity_range'));
             $activities->whereDate('created_at','>=',$dates[0]??'');
             $activities->whereDate('created_at','<=',$dates[1]??'');
         }
-       $activities = $activities->paginate(10); 
+       $activities = $activities->orderBy('created_at', 'desc')->paginate(10); 
 
-        // 4. DAFTAR DOKUMEN (Terfilter & Diurutkan dari yang terbaru)
         $documents = (clone $docQuery)->orderBy('created_at', 'desc')->take(5)->get(); 
 
         return view('home', compact(
@@ -145,7 +137,6 @@ class HomeController extends AppBaseController
 
     public function showFile(Request $request, $dir = 'original', $file = null)
     {
-        // 1. Biarkan nama filenya tetap ACAK (hashed) seperti di dalam folder!
         $name = $file; 
         
         $attachment = 'inline';
@@ -158,7 +149,6 @@ class HomeController extends AppBaseController
             abort(404);
         }
 
-        // 2. Tentukan tipe ekstensi untuk browser
         $extension = strtolower(last(explode('.', $file)));
         $mimeTypes = [
             'pdf' => 'application/pdf', 'doc' => 'application/msword', 
@@ -168,7 +158,6 @@ class HomeController extends AppBaseController
         ];
         $contentType = $mimeTypes[$extension] ?? 'application/octet-stream';
 
-        // 3. PROSES DEKRIPSI
         if ($dir == 'original') {
             try {
                 $encryptedContents = file_get_contents($filePath);

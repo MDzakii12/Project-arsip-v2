@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Illuminate\Http\Request; // <-- Udah gua tambahin biar nggak error
 
 class LoginController extends Controller
 {
@@ -42,5 +43,11 @@ class LoginController extends Controller
         return 'username';
     }
 
-
+    protected function authenticated(Request $request, $user)
+    {
+        if ($user->status_akun == 'Diblokir') {
+            \Auth::logout(); 
+            return redirect('/login')->withErrors(['username' => 'Mohon maaf, akun Anda sedang diblokir. Silakan hubungi admin.']);
+        }
+    }
 }

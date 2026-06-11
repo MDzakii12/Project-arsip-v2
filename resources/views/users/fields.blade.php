@@ -38,11 +38,8 @@
             <div class="form-group col-sm-6 {{ $errors->has('jabatan') ? 'has-error' :'' }}">
                 {!! Form::label('jabatan', 'Jabatan:') !!} 
                 {!! Form::select('jabatan', [
-                    'Pegawai' => 'Pegawai Biasa', 
-                    'Operator' => 'Operator (Manajemen Data)',
-                    'Admin' => 'Administrator (Akses Penuh)',
-                    'Kepala Sub Bagian' => 'Kepala Sub Bagian',
-                    'Staf' => 'Staf'
+                    'Pegawai' => 'Pegawai ', 
+                    'Operator' => 'Operator ',
                 ], null, ['class' => 'form-control', 'placeholder' => '-- Pilih Jabatan --']) !!}
                 {!! $errors->first('jabatan','<span class="help-block">:message</span>') !!}
             </div>

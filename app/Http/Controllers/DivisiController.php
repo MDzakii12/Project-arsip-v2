@@ -8,14 +8,12 @@ use Flash;
 
 class DivisiController extends Controller
 {
-    // Nampilin halaman daftar Divisi
     public function index()
     {
         $divisis = Divisi::all();
         return view('divisi.index', compact('divisis'));
     }
 
-    // Nyimpen Divisi baru ke database
     public function store(Request $request)
     {
         Divisi::create($request->all());
@@ -23,7 +21,6 @@ class DivisiController extends Controller
         return redirect(route('divisi.index'));
     }
 
-    // Ngapus Divisi
     public function destroy($id)
     {
         $divisi = Divisi::findOrFail($id);

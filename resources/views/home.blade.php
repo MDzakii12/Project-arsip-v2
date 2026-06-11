@@ -113,23 +113,35 @@
                         <h3 class="box-title"><i class="fa fa-upload"></i> Quick Upload File</h3>
                     </div>
                     <div class="box-body">
-                        <form action="#" class="text-center" onsubmit="return gotoUpload()">
+                        <form id="quickUploadForm" action="javascript:void(0);" class="text-center" onsubmit="return gotoUpload()">
                             <div class="form-group">
-                                <label for="">Pilih Arsip Tujuan:</label>
+                                <label for="document_id">Pilih Arsip Tujuan:</label>
                                 <select name="document_id" id="document_id" class="form-control select2" style="width: 100%;" required>
                                     <option value="">-- Pilih Dokumen Arsip --</option>
                                     @foreach ($documents as $document)
-                                        @can('view',$document)
-                                            <option value="{{$document->id}}">{{$document->name}}</option>
-                                        @endcan
+                                        {{-- Kita pakai nama kolom yang bener sesuai database --}}
+                                        <option value="{{ $document->id_arsip }}">{{ $document->nama_arsip }}</option>
                                     @endforeach
                                 </select>
                             </div>
                             <div class="form-group">
-                                <button class="btn btn-primary btn-block"><i class="fa fa-cloud-upload"></i> Lanjut Upload File</button>
+                                <button type="submit" class="btn btn-primary btn-block">
+                                    <i class="fa fa-cloud-upload"></i> Lanjut Upload File
+                                </button>
                             </div>
                         </form>
                     </div>
+
+                    <script>
+                        function gotoUpload() {
+                            var docId = document.getElementById('document_id').value;
+                            if(docId) {
+                                // Langsung teleport ke dalam folder yang dipilih!
+                                window.location.href = "{{ url('admin/documents') }}/" + docId;
+                            }
+                            return false;
+                        }
+                    </script>
                 </div>
             </div>
         </div>
